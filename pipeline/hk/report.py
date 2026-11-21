@@ -290,14 +290,17 @@ def _headline(rec: dict, slp: dict, act: dict, load: dict, tips: list[dict], lon
 def _week_line(rec: dict, slp: dict, act: dict, load: dict, tips: list[dict]) -> str:
     if rec["state"] == "none" and slp["score"] is None and act["score"] is None:
         return "这 7 天的数据还不够，多戴几天再来看。"
+    # Praise an area only when it has no suggestion of its own: "sleep was good" next to
+    # "sleep a little longer" would contradict itself.
+    ids = {t["id"] for t in tips}
     good = []
-    if rec["state"] == "steady":
+    if rec["state"] == "steady" and not ids & {"vitals", "hrv_low", "rhr_high"}:
         good.append("恢复平稳")
-    if slp["score"] is not None and slp["score"] >= 80:
+    if slp["score"] is not None and slp["score"] >= 80 and not ids & {"sleep_short", "sleep_below", "sleep_irregular"}:
         good.append("睡眠不错")
-    if act["score"] is not None and act["score"] >= 80:
+    if act["score"] is not None and act["score"] >= 80 and not ids & {"steps_low", "activity_low", "strength_low"}:
         good.append("活动量充足")
-    if load["state"] == "steady":
+    if load["state"] == "steady" and not ids & {"load_up", "load_restart", "training_gap"}:
         good.append("训练节奏平稳")
     lead = "、".join(good)
     known = sum([rec["state"] != "none", slp["score"] is not None, act["score"] is not None,

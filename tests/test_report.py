@@ -108,6 +108,15 @@ class GoodWeek(unittest.TestCase):
         self.assertEqual((r["start"], r["end"], r["sunday"], r["partial"]), (7, 13, True, False))
         self.assertEqual((r["sleep"]["nights"], r["sleep"]["bed"], r["sleep"]["wake"]), (7, -30, 430))
 
+    def test_an_area_with_a_suggestion_is_not_also_praised(self):
+        r = Week().set(sleep7=6.8, sri7=88.0).last()                  # sleep score 84, but under 7 hours
+        self.assertGreaterEqual(r["sleep"]["score"], 80)
+        self.assertEqual([t["id"] for t in r["tips"]], ["sleep_below"])
+        self.assertNotIn("睡眠不错", r["headline"])
+        self.assertTrue(r["headline"].startswith("恢复平稳、活动量充足、训练节奏平稳。"))
+        r = Week().set(strengthDays7=1).last()                        # activity score 90, one strength day
+        self.assertNotIn("活动量充足", r["headline"])
+
     def test_a_week_without_any_data_gets_no_report(self):
         reports = Week().reports()
         self.assertEqual([r["end"] for r in reports], [13])          # the first week is empty

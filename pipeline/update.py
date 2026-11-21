@@ -278,7 +278,7 @@ def main() -> None:
     ref_params = params_by_id(reference)
     nights = build_nights(cat.get("SleepAnalysis", []), tl, rank, day0, ndays, hr,
                           q.get("HeartRateVariabilitySDNN", []), q.get("OxygenSaturation", []),
-                          cut_window=ref_params["sleep_duration"]["cut_window_min"] * 60)
+                          cut=ref_params["sleep_duration"])
     for k, vals in nights["daily"].items():
         daily[k] = rnd(vals, SLEEP_DECIMALS[k])
     sleep_era = source_runs(nights["src"], store.sources, days, min_run=3)

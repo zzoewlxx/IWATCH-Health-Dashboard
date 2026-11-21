@@ -249,7 +249,7 @@
     ].filter(Boolean).join('；');
     return ui.card({
       title: '恢复', h: 220,
-      desc: v.days ? `只和你自己比 · ${v.label}：${v.days} 天里有 ${v.steady} 天平稳` : '只和你自己比 · 基线还在建立，需要先积累约两个月的夜间数据',
+      desc: v.days ? `只和你自己比 · ${v.label}：${v.days} 天里有 ${v.steady} 天平稳` : '只和你自己比 · 需要戴着 Apple Watch 睡觉，积累约两个月的夜间数据后才有个人基线',
       emptyText: '还没有足够的夜间 HRV 数据',
       build: (c) => { const out = hrvChart(r)(c); if (!out.empty && fact) out.note = fact; return out; },
     }, ctx);
@@ -308,7 +308,7 @@
 
     const rec = r.recovery, load = r.load;
     const tilesRow = el('div', { class: 'tiles four' },
-      tile('恢复', rec.label, '', rec.days ? `${rec.days} 天里有 ${rec.steady} 天平稳` : '基线还在建立',
+      tile('恢复', rec.label, '', rec.days ? `${rec.days} 天里有 ${rec.steady} 天平稳` : '需要约两个月的夜间数据',
         trail(k, (x) => (x.recovery.days ? x.recovery.steady / x.recovery.days : null))),
       tile('睡眠', r.sleep.score == null ? '–' : String(r.sleep.score), r.sleep.score == null ? '' : '分',
         r.sleep.score == null ? '有记录的夜晚不足 4 晚' : delta(r.sleep.score, prev && prev.sleep.score, prev) || '对照指南的完成度',

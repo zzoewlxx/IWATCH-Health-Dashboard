@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from bisect import bisect_left, bisect_right
 from collections import defaultdict
+from statistics import median
 
 from .tz import DAY, Timeline
 
@@ -77,8 +78,33 @@ def _mean(xs: list[float]) -> float | None:
     return sum(xs) / len(xs) if xs else None
 
 
+def truncated_nights(total: list, gap: list, *, ratio: float = 0.75, history: int = 28,
+                     min_history: int = 7, default_hours: float = 7.0) -> list:
+    """Which nights were probably cut short: 1 = yes, 0 = no, None = cannot tell.
+
+    Both must hold: heart-rate readings stopped the moment sleep ended (``gap``: the watch
+    came off or ran flat), and the night is clearly shorter than usual (under ``ratio`` x
+    the median of up to ``history`` earlier nights, or of ``default_hours`` while there are
+    fewer than ``min_history`` of them). Taking the watch off to charge right after waking
+    leaves the same gap after a normal-length night, and that night still counts.
+    """
+    out: list = [None] * len(total)
+    for d, g in enumerate(gap):
+        if g is None or total[d] is None:
+            continue
+        prior = [total[j] for j in range(max(0, d - history), d) if total[j] is not None and out[j] != 1]
+        usual = median(prior) if len(prior) >= min_history else default_hours
+        out[d] = 1 if g and total[d] < ratio * usual else 0
+    return out
+
+
 def build_nights(samples: list[tuple], tl: Timeline, rank: dict[int, int], day0: int, ndays: int,
-                 hr: list[tuple], hrv: list[tuple], spo2: list[tuple], cut_window: int = 3600) -> dict:
+                 hr: list[tuple], hrv: list[tuple], spo2: list[tuple], cut: dict | None = None) -> dict:
+    """``cut``: the sleep_duration parameters from reference.json (cut_window_min, cut_short_ratio,
+    cut_history_nights, cut_min_history, cut_default_hours); see truncated_nights."""
+    cut = cut or {}
+    cut_window = int(cut.get("cut_window_min", 60) * 60)
+    gap: list[bool | None] = [None] * ndays
     per_src: dict[int, dict[str, list]] = defaultdict(lambda: {"stage": [], "inbed": []})
     for s, e, val, src, _tz in samples:
         if e <= s:
@@ -163,7 +189,7 @@ def build_nights(samples: list[tuple], tl: Timeline, rank: dict[int, int], day0:
                 # "ends", the watch came off (or ran flat) and the record may be cut short.
                 # Unknown when the export itself ends inside the window.
                 if hr_s.ts[-1] >= wake + cut_window:
-                    out["sleepCut"][d] = 0 if hr_s.within([(wake + 1, wake + cut_window)]) else 1
+                    gap[d] = not hr_s.within([(wake + 1, wake + cut_window)])
             out["sleepHrv"][d] = _mean(hrv_s.within([(main["start"], main["end"])]))
             out["sleepSpo2"][d] = _mean(spo2_s.within([(main["start"], main["end"])]))
         else:
@@ -183,5 +209,8 @@ def build_nights(samples: list[tuple], tl: Timeline, rank: dict[int, int], day0:
         if row:
             segs_out.append([d, row])
 
+    out["sleepCut"] = truncated_nights(
+        out["sleepTotal"], gap, ratio=cut.get("cut_short_ratio", 0.75), history=cut.get("cut_history_nights", 28),
+        min_history=cut.get("cut_min_history", 7), default_hours=cut.get("cut_default_hours", 7.0))
     segs_out.sort(key=lambda r: r[0])
     return {"daily": out, "kind": kind, "src": src_of, "segments": segs_out}
