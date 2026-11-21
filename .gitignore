@@ -1,0 +1,17 @@
+# ── 个人健康数据：永远不要提交 ──────────────────────────────
+# iPhone 导出的原始文件
+数据集/*
+!数据集/.gitkeep
+# 由导出生成的看板数据和数据库
+dashboard/data.js
+dashboard/intraday.js
+health.db
+health.db.tmp
+# 个人设置（可能包含出行时区等信息）；模板见 config.example.json
+config.json
+
+# ── 其他 ────────────────────────────────────────────────
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
