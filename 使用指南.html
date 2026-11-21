@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IWATCH 健康看板 · 使用指南</title>
+<style>
+:root {
+  color-scheme: light;
+  --plane: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --line: #e1e0d9; --border: rgba(11, 11, 11, 0.10); --wash: rgba(11, 11, 11, 0.04);
+  --accent: #2a78d6; --accent-soft: #e6f0fc; --warm: #fdf5e6; --warm-line: #eda100;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --plane: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --line: #2c2c2a; --border: rgba(255, 255, 255, 0.10); --wash: rgba(255, 255, 255, 0.05);
+    --accent: #5598e7; --accent-soft: #14273f; --warm: #2a2210; --warm-line: #c98500;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--plane); color: var(--ink);
+  font: 16px/1.75 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+}
+.wrap { max-width: 840px; margin: 0 auto; padding: 40px 24px 80px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1 { font-size: 30px; line-height: 1.3; margin: 0 0 10px; letter-spacing: 0.01em; }
+h2 { font-size: 22px; line-height: 1.4; margin: 56px 0 14px; padding-top: 18px; border-top: 1px solid var(--line); display: flex; align-items: baseline; gap: 12px; }
+h2 .n { flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--ink); color: var(--plane); font-size: 15px; font-weight: 700; }
+h3 { font-size: 17px; margin: 28px 0 8px; }
+p { margin: 10px 0; }
+ul, ol { padding-left: 24px; margin: 10px 0; }
+li { margin: 6px 0; }
+b, strong { font-weight: 650; }
+code, kbd, .path {
+  font-family: ui-monospace, "SF Mono", Consolas, "Microsoft YaHei UI", monospace; font-size: 0.9em;
+  background: var(--wash); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px;
+}
+pre {
+  font-family: ui-monospace, "SF Mono", Consolas, "Microsoft YaHei UI", monospace; font-size: 14px; line-height: 1.6;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; overflow-x: auto; margin: 12px 0;
+}
+.lead { font-size: 18px; color: var(--ink-2); margin: 0 0 18px; }
+.meta { color: var(--muted); font-size: 14px; }
+.quick { margin: 28px 0 8px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.quick div { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 14px 12px; }
+.quick b { display: block; font-size: 13px; color: var(--muted); font-weight: 600; }
+.quick span { display: block; margin-top: 2px; font-weight: 650; line-height: 1.45; }
+.toc { margin: 22px 0 0; padding: 14px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; columns: 2; column-gap: 32px; font-size: 15px; }
+.toc a { display: block; padding: 3px 0; color: var(--ink-2); break-inside: avoid; }
+.toc a:hover { color: var(--accent); }
+.box { margin: 16px 0; padding: 14px 18px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); }
+.box.tip { background: var(--accent-soft); border-color: transparent; }
+.box.calm { background: var(--warm); border-color: transparent; border-left: 4px solid var(--warm-line); }
+.box > :first-child { margin-top: 0; }
+.box > :last-child { margin-bottom: 0; }
+.box .t { font-weight: 650; margin-bottom: 4px; }
+.os { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
+.os > div { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; }
+.os h3 { margin-top: 2px; }
+figure { margin: 18px 0 22px; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: 10px; }
+figcaption { margin-top: 8px; color: var(--muted); font-size: 14px; }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 15px; }
+th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+th { color: var(--ink-2); font-weight: 600; white-space: nowrap; }
+td:first-child { white-space: nowrap; font-weight: 600; }
+table.files td:first-child { font-family: ui-monospace, "SF Mono", Consolas, "Microsoft YaHei UI", monospace; font-weight: 500; font-size: 14px; }
+figure a { display: block; }
+figure a:hover img { border-color: var(--accent); }
+.faq h3 { margin: 22px 0 4px; font-size: 16px; }
+.faq h3::before { content: "问"; display: inline-block; margin-right: 8px; padding: 0 6px; border-radius: 4px; background: var(--ink); color: var(--plane); font-size: 12px; vertical-align: 2px; }
+.faq p { margin: 4px 0 0; color: var(--ink-2); }
+.foot { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+@media (max-width: 680px) {
+  .wrap { padding: 28px 16px 64px; }
+  h1 { font-size: 25px; }
+  h2 { font-size: 20px; }
+  .quick { grid-template-columns: 1fr 1fr; }
+  .os { grid-template-columns: 1fr; }
+  .toc { columns: 1; }
+  td:first-child { white-space: normal; }
+}
+@media print {
+  :root { color-scheme: light; --plane: #fff; --surface: #fff; --ink: #000; --ink-2: #333; --muted: #555; --line: #ccc;
+    --border: rgba(0, 0, 0, 0.2); --wash: #f3f3f3; --accent: #1c5cab; --accent-soft: #eef4fc; --warm: #fdf7ea; }
+  body { font-size: 12.5px; line-height: 1.65; }
+  h1 { font-size: 24px; } h2 { font-size: 18px; } h3 { font-size: 14px; } .faq h3 { font-size: 13.5px; }
+  h2 .n { width: 24px; height: 24px; font-size: 12px; }
+  .lead { font-size: 14px; } .meta, figcaption, .foot { font-size: 11.5px; }
+  table { font-size: 12px; } table.files td:first-child { font-size: 11.5px; } pre { font-size: 11.5px; }
+  .quick span { font-size: 12.5px; }
+  .noprint { display: none; }
+  figure { margin: 10px 0 14px; }
+  figure img { width: auto; max-width: 100%; max-height: 118mm; margin: 0 auto; }
+  .wrap { max-width: none; padding: 0; }
+  .toc { display: none; }
+  h2 { margin-top: 28px; break-after: avoid; }
+  h3 { break-after: avoid; }
+  figure, .box, .os > div, pre, table, .quick { break-inside: avoid; }
+  a { color: inherit; }
+  a[href^="http"]::after { content: "（" attr(href) "）"; font-size: 0.85em; color: #555; word-break: break-all; }
+  .toc a::after, .foot a::after { content: none; }
+}
+@page { size: A4; margin: 16mm 15mm; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>IWATCH 健康看板 · 使用指南</h1>
+  <p class="lead">把 iPhone「健康」App 里的数据，变成一份看得懂的每周健康周报。全程在你自己的电脑上完成，数据不上传。</p>
+  <p class="meta">第一次大约需要 15 分钟 · 适用于 Windows 和 Mac · 以下截图里的数据全部是虚构的演示数据</p>
+
+  <div class="quick" aria-label="四个步骤">
+    <div><b>第 1 步</b><span>在电脑上装 Python（只需一次）</span></div>
+    <div><b>第 2 步</b><span>从 iPhone 导出健康数据</span></div>
+    <div><b>第 3 步</b><span>把导出的文件放进「数据集」文件夹</span></div>
+    <div><b>第 4 步</b><span>运行，浏览器自动打开周报</span></div>
+  </div>
+
+  <nav class="toc" aria-label="目录">
+    <a href="#before">开始之前</a>
+    <a href="#python">1. 安装 Python</a>
+    <a href="#export">2. 从 iPhone 导出数据</a>
+    <a href="#put">3. 放进「数据集」文件夹</a>
+    <a href="#run">4. 运行</a>
+    <a href="#report">5. 看懂周报</a>
+    <a href="#pages">6. 其他页面</a>
+    <a href="#notes">7. 标注关键日子</a>
+    <a href="#update">8. 以后怎么更新</a>
+    <a href="#faq">9. 常见问题</a>
+    <a href="#privacy">10. 隐私与说明</a>
+  </nav>
+</header>
+
+<h2 id="before">开始之前</h2>
+<p>你需要：</p>
+<ul>
+  <li><b>一部 iPhone</b>，「健康」App 里有数据就行。</li>
+  <li><b>Apple Watch</b>：不是必须的，但睡眠、心率、HRV、血氧这些都靠手表，而且要戴着睡觉。只有手机的话，主要能看到步数、走路距离和爬楼。</li>
+  <li><b>一台电脑</b>：Windows 10 / 11 或 Mac。</li>
+</ul>
+<div class="box tip">
+  <div class="t">先解压</div>
+  <p>收到的压缩包要先解压：Windows 上右键压缩包，选「全部解压缩」；Mac 上直接双击。<b>不要在压缩包里面直接双击运行</b>，那样会找不到程序文件。</p>
+</div>
+<p>解压后的文件夹里是这些东西：</p>
+<table class="files">
+  <tbody>
+    <tr><td>使用指南.html</td><td>你正在看的这份</td></tr>
+    <tr><td>更新数据.bat</td><td>Windows 上双击它来运行</td></tr>
+    <tr><td>数据集</td><td>文件夹，把 iPhone 导出的文件放这里</td></tr>
+    <tr><td>dashboard</td><td>文件夹，看板网页在里面，<span class="path">index.html</span> 就是看板</td></tr>
+    <tr><td>标注.example.csv</td><td>标注模板（可选，见第 7 步）</td></tr>
+    <tr><td>其余文件</td><td>程序本身，不用管</td></tr>
+  </tbody>
+</table>
+
+<h2 id="python"><span class="n">1</span>安装 Python（只需一次）</h2>
+<p>Python 是一个免费的编程工具，本看板靠它处理数据。装一次以后就不用管了。</p>
+<div class="os">
+  <div>
+    <h3>Windows</h3>
+    <ol>
+      <li>打开 <a href="https://www.python.org/downloads/">python.org/downloads</a>，点黄色的「Download Python 3.x」按钮。</li>
+      <li>双击下载的安装包。在第一个界面<b>勾选最下面的「Add python.exe to PATH」</b>，再点「Install Now」。忘了勾也没关系，本工具会自己找到它。</li>
+      <li>装完点「Close」。</li>
+    </ol>
+  </div>
+  <div>
+    <h3>Mac</h3>
+    <p>两种方法选一种：</p>
+    <ul>
+      <li>打开 <a href="https://www.python.org/downloads/">python.org/downloads</a>，下载 macOS 安装包，双击后一路点「继续」。</li>
+      <li>或者先跳到第 4 步直接运行。如果弹出“需要安装命令行开发者工具”，点「安装」，装好后它自带的 Python 就能用。</li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="export"><span class="n">2</span>从 iPhone 导出健康数据</h2>
+<ol>
+  <li>打开 iPhone 上的「健康」App。</li>
+  <li>点右上角的头像。</li>
+  <li>滑到最下面，点「导出所有健康数据」，再点「导出」。</li>
+  <li>等几十秒到几分钟，数据多的话会更久，之后会弹出分享菜单。</li>
+  <li>把这个文件（通常叫 <span class="path">导出.zip</span>）传到电脑上：
+    <ul>
+      <li><b>Mac</b>：用「隔空投送」。</li>
+      <li><b>Windows</b>：用微信或 QQ 发给自己的电脑。文件太大发不了时，可以在分享菜单里选「存储到“文件”」，存进 iCloud 云盘，再在电脑上打开 <a href="https://www.icloud.com/iclouddrive">icloud.com</a> 下载。</li>
+    </ul>
+  </li>
+</ol>
+<p>这个文件一般有几十 MB 到几百 MB，用了几年 Apple Watch 的可能超过 1 GB。<b>不用解压它。</b></p>
+
+<h2 id="put"><span class="n">3</span>放进「数据集」文件夹</h2>
+<p>把 <span class="path">导出.zip</span> 原样拖进「数据集」文件夹就行。解压出来的文件夹放进去也认。</p>
+<p>以后有了新的导出也放这里。程序会自动选用<b>最新导出</b>的那一份，旧的可以删掉。</p>
+
+<h2 id="run"><span class="n">4</span>运行</h2>
+<div class="os">
+  <div>
+    <h3>Windows</h3>
+    <ol>
+      <li>双击「更新数据.bat」。</li>
+      <li>如果弹出蓝色的“Windows 已保护你的电脑”，点「更多信息」，再点「仍要运行」。弹这个是因为脚本没有数字签名；不放心的话，可以右键用记事本打开看看里面写了什么。</li>
+      <li>会出现一个黑色窗口显示进度。<b>第一次运行</b>会自动安装一个时区组件，需要联网，可能要等一两分钟。</li>
+      <li>显示“完成”后，浏览器会自动打开看板，黑色窗口 8 秒后自己关掉。</li>
+    </ol>
+  </div>
+  <div>
+    <h3>Mac</h3>
+    <ol>
+      <li>打开「终端」：按 <kbd>⌘</kbd> + <kbd>空格</kbd>，输入“终端”后回车。</li>
+      <li>输入 <code>cd</code> 和一个空格，然后把解压出来的文件夹拖进终端窗口，按回车。</li>
+      <li>输入下面这行，按回车：
+        <pre>python3 pipeline/update.py</pre></li>
+      <li>显示“完成”后，浏览器会自动打开看板。</li>
+    </ol>
+  </div>
+</div>
+<p>处理时间一般在 10 秒到 2 分钟之间，看数据有多少。</p>
+<div class="box tip">
+  <div class="t">以后只想看看，不用重新运行</div>
+  <p>直接双击 <span class="path">dashboard</span> 文件夹里的 <span class="path">index.html</span> 就行。可以把它加到浏览器书签里。</p>
+</div>
+
+<h2 id="report"><span class="n">5</span>看懂周报</h2>
+<p>看板打开后的第一页就是「周报」。每个周日出一期，另外总有一期覆盖最近 7 天。<span class="noprint">下面的截图点一下可以看大图。</span></p>
+<figure>
+  <a href="docs/guide/report-top.png" target="_blank" title="点击查看原图"><img src="docs/guide/report-top.png" alt="周报顶部：一句话结论、展开的建议、四个概况卡片" loading="lazy"></a>
+  <figcaption>周报顶部。第一条建议已经点开，能看到原因和依据。</figcaption>
+</figure>
+<ul>
+  <li><b>一句话结论</b>：这周整体怎么样，最值得留意的是哪方面。</li>
+  <li><b>建议</b>：最多显示 3 条，按重要程度排好，分“值得留意”“建议”“小提示”三档。点一条能看到具体数字和原因；「看出处」会跳到对应的参考文献。</li>
+  <li><b>四个小卡片</b>：这周的概况。下面的灰线是往期的走势，蓝色是这一期。</li>
+  <li><b>上一期 / 下一期</b>：翻看以前的周报。</li>
+</ul>
+
+<figure>
+  <a href="docs/guide/report-sections.png" target="_blank" title="点击查看原图"><img src="docs/guide/report-sections.png" alt="四个方面：恢复、睡眠、日常活动、训练负荷" loading="lazy"></a>
+  <figcaption>「四个方面」：睡眠和日常活动有分数，恢复和训练负荷只有状态。</figcaption>
+</figure>
+<ul>
+  <li><b>睡眠、日常活动有分数</b>，意思是“对照健康指南完成了多少”。100 分就是完全达到指南推荐：每晚睡 7 小时以上、作息规律、日均 7,000 步、每周 150 分钟运动、2 天力量训练。进度条告诉你分扣在哪里。</li>
+  <li><b>恢复、训练负荷没有分数，只有状态</b>，因为它们只能和你自己的过去比。恢复看的是夜间 HRV 和静息心率有没有离开你平时的范围（图里的浅蓝色带）。这个范围要戴着手表睡觉大约两个月才能建立起来。</li>
+</ul>
+
+<figure>
+  <a href="docs/guide/report-long.png" target="_blank" title="点击查看原图"><img src="docs/guide/report-long.png" alt="长期变化：近 1 到 6 个月的 7 项检查" loading="lazy"></a>
+  <figcaption>「长期变化」：近 1 到 6 个月的 7 项检查。</figcaption>
+</figure>
+<p>这里看的是持续了一段时间的变化，比如静息心率连续一个月偏高、半年里体重明显下降。出现“值得留意”时，它会写清楚记录里什么变了、常见原因有哪些，以及如果一直这样，可以带着记录去哪类门诊问问。</p>
+<p>往下还有「这 7 天」的逐日记录（点一行能跳到那一天）和「往期」一览。</p>
+
+<div class="box calm">
+  <div class="t">看周报时请记住</div>
+  <ul>
+    <li>分数低不代表不健康，只是说这周离指南推荐还有距离。</li>
+    <li>提示不是诊断。很多变化只是饮酒、熬夜、出差、表带松了造成的。</li>
+    <li>刚开始用的头两个月，很多项会显示“数据不足”，这很正常。</li>
+    <li>身体不舒服的时候，请直接去看医生，不要等数据。</li>
+  </ul>
+</div>
+
+<h2 id="pages"><span class="n">6</span>其他页面</h2>
+<table>
+  <thead><tr><th>页面</th><th>看什么</th></tr></thead>
+  <tbody>
+    <tr><td>总览</td><td>主要指标、关键趋势、逐月对比</td></tr>
+    <tr><td>活动</td><td>步数、三个圆环、能量消耗、距离、爬楼</td></tr>
+    <tr><td>睡眠</td><td>每晚的时长和分期、作息时间线、夜间的心率、HRV、呼吸、血氧、手腕温度</td></tr>
+    <tr><td>心脏</td><td>静息心率、HRV、每天的心率范围、心电图</td></tr>
+    <tr><td>训练</td><td>每周训练量、心率区间、每一次训练</td></tr>
+    <tr><td>身体</td><td>体重、体脂（需要体脂秤之类的设备写入健康 App）</td></tr>
+    <tr><td>洞察</td><td>最近 7 天相对你自己的基线、个人纪录、连续天数、指标之间的关系</td></tr>
+    <tr><td>单日</td><td>任意一天的每分钟心率、睡眠分期、训练时段、每小时步数</td></tr>
+    <tr><td>小结</td><td>近 90 天整理成一页，可以打印或存成 PDF 带给医生</td></tr>
+    <tr><td>回测</td><td>每条建议以前出现过多少次，换一个标准会怎样</td></tr>
+    <tr><td>数据说明</td><td>每个参考范围的出处和证据等级，以及全部计算方法</td></tr>
+  </tbody>
+</table>
+<p>大部分图表上方可以切换时间范围（30 天到全部）和按日、周、月显示；鼠标停在图上能看到具体数值；按日显示时，点图上的某一天会跳到「单日」。右上角「外观」可以切换浅色和深色。</p>
+
+<figure>
+  <a href="docs/guide/day.png" target="_blank" title="点击查看原图"><img src="docs/guide/day.png" alt="单日页：当天的步数、睡眠、心率，全天心率曲线和睡眠分期" loading="lazy"></a>
+  <figcaption>「单日」：一整天的心率曲线，下面两条色带是睡眠分期和训练时段。</figcaption>
+</figure>
+<figure>
+  <a href="docs/guide/summary.png" target="_blank" title="点击查看原图"><img src="docs/guide/summary.png" alt="小结页：近 90 天的主要指标和睡眠活动对比" loading="lazy"></a>
+  <figcaption>「小结」：点“打印 / 存为 PDF”，就能带去看医生。</figcaption>
+</figure>
+<figure>
+  <a href="docs/guide/notes-ref.png" target="_blank" title="点击查看原图"><img src="docs/guide/notes-ref.png" alt="数据说明页：作息规律指数的计算方法、证据等级和出处" loading="lazy"></a>
+  <figcaption>「数据说明」：每个参考范围怎么算、证据有多强、出自哪篇文献，都能点开看。</figcaption>
+</figure>
+
+<h2 id="notes"><span class="n">7</span>标注关键日子（可选）</h2>
+<p>生病、喝酒、熬夜、出差的日子，数据往往和平时不一样。记下来，以后回看就知道原因；「回测」页还会告诉你这些日子身体信号有没有跟着变。</p>
+<ol>
+  <li>把 <span class="path">标注.example.csv</span> 复制一份，改名为 <span class="path">标注.csv</span>。</li>
+  <li>用 Excel 或记事本打开，一行写一天，三列分别是日期、标签、备注：
+<pre>日期,标签,备注
+2025-03-08,生病,感冒发烧
+2025-03-21,饮酒、熬夜,朋友聚餐</pre></li>
+  <li>保存，然后重新运行一次（第 4 步）。</li>
+</ol>
+<p>日期写成 <code>2025/3/8</code> 也可以；一格里写多个标签时，用顿号或逗号隔开。</p>
+
+<h2 id="update"><span class="n">8</span>以后怎么更新</h2>
+<p>想看最新一周时：重新从 iPhone 导出（第 2 步）→ 放进「数据集」（第 3 步）→ 再运行一次（第 4 步）。每次导出都包含全部历史，所以「数据集」里只留最新的一份就行。建议每周或每两周更新一次。</p>
+<div class="box">
+  <div class="t">可选设置：你每晚需要睡多久</div>
+  <p>周报里的“睡眠欠账”默认按每晚需要 8 小时计算。如果你不设闹钟时自然只睡 7 小时左右，可以把 <span class="path">config.example.json</span> 复制为 <span class="path">config.json</span>，用记事本把里面的 <code>"sleep_need_hours": 8</code> 改成 <code>7</code>，再运行一次。</p>
+</div>
+
+<h2 id="faq"><span class="n">9</span>常见问题</h2>
+<div class="faq">
+  <h3>双击「更新数据.bat」后提示 Python was not found</h3>
+  <p>还没装 Python，或者没装好。按第 1 步装好，再双击一次。</p>
+  <h3>黑色窗口一闪就没了</h3>
+  <p>多半是在压缩包里面直接运行了。先解压，再从解压出来的文件夹里双击。</p>
+  <h3>提示“没有找到 Apple 健康导出”</h3>
+  <p>检查导出的文件是不是放在「数据集」文件夹里。如果放了还提示，可能是传输中断、文件不完整，从手机重新传一次。</p>
+  <h3>浏览器没有自动打开</h3>
+  <p>手动双击 <span class="path">dashboard</span> 文件夹里的 <span class="path">index.html</span>。</p>
+  <h3>看板上写着“还没有数据”</h3>
+  <p>还没有成功运行过一次，回到第 4 步。</p>
+  <h3>第一次运行时提示安装失败</h3>
+  <p>时区组件需要联网下载。没联网也能继续用，只是出过国的那些天时区可能不准。联网后再运行一次就好。</p>
+  <h3>很多项是空的，或者写着“数据不足”</h3>
+  <p>睡眠、心率、HRV、血氧需要 Apple Watch，而且要戴着睡觉。个人基线需要先积累大约两个月的数据。只有 iPhone 的话，主要能看到步数、距离、爬楼和走路速度。</p>
+  <h3>步数和健康 App 里显示的不一样</h3>
+  <p>手机和手表会同时记步，直接相加会重复，这里去掉了重叠的部分；出过国的日子也按当地时间重新算过。「数据说明」页里有对账结果。</p>
+  <h3>Mac 上提示 command not found: python3</h3>
+  <p>还没装 Python，按第 1 步装好再试。</p>
+  <h3>换过手机或手表</h3>
+  <p>不同设备的算法不一样。图上会用竖线标出换设备的日子，竖线两边的数值不宜直接比较。</p>
+  <h3>iPhone 是英文系统</h3>
+  <p>也能识别（导出的文件叫 <span class="path">export.zip</span>），只是测试得少一些。遇到问题请告诉把它发给你的人。</p>
+</div>
+
+<h2 id="privacy"><span class="n">10</span>隐私与说明</h2>
+<ul>
+  <li>所有处理都在你自己的电脑上完成，不会上传任何数据。除了 Windows 上第一次运行时自动安装时区组件，整个过程不需要联网。</li>
+  <li>你的健康数据会保存在这几个地方：「数据集」文件夹、<span class="path">health.db</span>、<span class="path">dashboard/data.js</span> 和 <span class="path">dashboard/intraday.js</span>。想把这个工具转给别人时，请发你最初收到的压缩包，<b>不要发你自己用过的文件夹</b>。</li>
+  <li>不想用了，删掉整个文件夹就行，电脑别处不会留下你的健康数据。</li>
+  <li>本工具只做数据整理，以及和公开的参考范围做对照。它不是医疗器械，不能用于诊断或治疗。</li>
+</ul>
+
+<p class="foot">
+  项目主页：<a href="https://github.com/zzoewlxx/IWATCH-Health-Dashboard">github.com/zzoewlxx/IWATCH-Health-Dashboard</a>（开源，MIT 许可证）。<br>
+  有问题或建议，可以直接问把它发给你的人，或者在项目主页提 issue。
+</p>
+
+</div>
+</body>
+</html>

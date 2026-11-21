@@ -17,3 +17,5 @@ __pycache__/
 *.pyc
 .DS_Store
 Thumbs.db
+# 打包好准备发给别人的文件
+dist/
