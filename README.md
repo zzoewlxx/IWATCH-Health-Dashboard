@@ -163,6 +163,10 @@ GROUP BY kind;
 | `dashboard/` | 看板页面（原生 JS + ECharts，无需构建） |
 | `health.db` | 生成的 SQLite 数据库（不入库） |
 
+## 许可证
+
+本项目以 [MIT 许可证](LICENSE) 发布。随仓库附带的 ECharts 仍适用它自己的 Apache-2.0 许可证（见 `dashboard/vendor/echarts.LICENSE.txt`）。
+
 ## 致谢
 
 - 图表使用 [Apache ECharts](https://echarts.apache.org/)（Apache-2.0，已随仓库放在 `dashboard/vendor/`）。
