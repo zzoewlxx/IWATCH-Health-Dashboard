@@ -68,7 +68,8 @@
   // ------------------------------------------------------------------ baseline status
   const VITALS = [
     { key: 'rhr', name: '静息心率', unit: 'bpm', dec: 1, worse: 'up', better: 'down' },
-    { key: 'hrv', name: '心率变异性（HRV）', unit: 'ms', dec: 1, worse: 'down', better: 'up' },
+    // sleep-window readings only: the all-day mean depends on when the watch happened to sample
+    { key: 'sleepHrv', name: '睡眠期间 HRV', unit: 'ms', dec: 1, worse: 'down', better: 'up' },
     { key: 'sleepHr', name: '睡眠平均心率', unit: 'bpm', dec: 1, worse: 'up', better: 'down' },
     { key: 'resp', name: '睡眠呼吸频率', unit: '次/分', dec: 1, worse: 'up' },
     { key: 'wristTemp', name: '手腕温度', unit: '°C', dec: 2, worse: 'up' },

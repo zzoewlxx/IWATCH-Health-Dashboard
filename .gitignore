@@ -9,6 +9,8 @@ health.db
 health.db.tmp
 # 个人设置（可能包含出行时区等信息）；模板见 config.example.json
 config.json
+# 你自己对某些日子的标注（生病、饮酒、熬夜…）；模板见 标注.example.csv
+标注.csv
 
 # ── 其他 ────────────────────────────────────────────────
 __pycache__/

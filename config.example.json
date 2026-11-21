@@ -1,5 +1,6 @@
 {
   "data_dir": "数据集",
   "source_priority": [],
-  "timezone_overrides": []
+  "timezone_overrides": [],
+  "sleep_need_hours": 8
 }

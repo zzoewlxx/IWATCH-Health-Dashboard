@@ -1,0 +1,942 @@
+{
+  "version": 1,
+  "updated": "2026-11-21",
+  "about": "看板里每一个参考区间和判断依据都列在这里：怎么算、用了哪些数字、出处是什么、证据有多强。计算直接读取这份文件里的参数，改了这里，结果就跟着变。",
+  "principles": [
+    "个体差异大的指标（HRV、静息心率、呼吸频率、手腕温度）只和你自己的基线比；有公认指南的指标（睡眠时长、步数、运动量）才用人群标准。",
+    "看一段时间的均值，不看单独一天。单晚的波动很常见，多数没有意义。",
+    "设备测不准的指标不参与判断，原因列在最后。",
+    "没有提示不等于没有问题，有提示也不等于有问题。这里的内容帮你了解自己，不是诊断。"
+  ],
+  "grades": {
+    "A": "指南、专业共识或大型荟萃分析，结论稳定",
+    "B": "队列研究或小样本对照试验，方向一致，但人群或测量方法和这里不完全相同",
+    "C": "经验做法，或学界仍有争议，只作提醒"
+  },
+  "checked": {
+    "fulltext": "对过全文里的原句",
+    "abstract": "对过摘要",
+    "official": "对过官方页面",
+    "secondary": "来自转述，没有直接见到原文"
+  },
+  "groups": {
+    "recovery": "恢复",
+    "sleep": "睡眠",
+    "activity": "日常活动",
+    "training": "训练",
+    "long": "长期变化"
+  },
+  "scores": {
+    "about": "睡眠和日常活动各有一个 0 到 100 的分数，表示这 7 天对照指南完成了多少。恢复和训练负荷只能和你自己比，谈不上“完成度”，所以不打分，只给状态。",
+    "note": "各部分的权重和折算方式是这里定的，没有文献依据，目的只是把几项完成度合成一个容易看的数。每一部分得了多少分，在周报里都能看到。",
+    "sleep": {
+      "label": "睡眠",
+      "parts": [
+        {
+          "key": "duration",
+          "label": "时长",
+          "max": 60,
+          "indicator": "sleep_duration",
+          "curve": [
+            [
+              5,
+              0
+            ],
+            [
+              7,
+              1
+            ]
+          ],
+          "rule": "7 天平均达到 7 小时得满分，5 小时及以下不得分，中间按比例。"
+        },
+        {
+          "key": "regularity",
+          "label": "规律",
+          "max": 40,
+          "indicator": "sleep_regularity",
+          "curve": [
+            [
+              50,
+              0
+            ],
+            [
+              71.6,
+              0.5
+            ],
+            [
+              87.3,
+              1
+            ]
+          ],
+          "rule": "这 7 天的作息规律指数达到 87.3（参照人群里最规律的五分之一）得满分，71.6（最不规律的五分之一的上限）得一半，50 及以下不得分。"
+        }
+      ]
+    },
+    "activity": {
+      "label": "日常活动",
+      "parts": [
+        {
+          "key": "steps",
+          "label": "步数",
+          "max": 40,
+          "indicator": "steps",
+          "curve": [
+            [
+              2000,
+              0
+            ],
+            [
+              5000,
+              0.5
+            ],
+            [
+              7000,
+              1
+            ]
+          ],
+          "rule": "日均 7,000 步得满分，5,000 步得一半，2,000 步及以下不得分。"
+        },
+        {
+          "key": "exercise",
+          "label": "运动分钟",
+          "max": 40,
+          "indicator": "activity_minutes",
+          "curve": [
+            [
+              0,
+              0
+            ],
+            [
+              150,
+              1
+            ]
+          ],
+          "rule": "7 天累计 150 分钟得满分，不足的按比例。"
+        },
+        {
+          "key": "strength",
+          "label": "力量训练",
+          "max": 20,
+          "indicator": "strength_days",
+          "curve": [
+            [
+              0,
+              0
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          "rule": "7 天里有 2 天做了力量训练得满分，1 天得一半。"
+        }
+      ]
+    }
+  },
+  "indicators": [
+    {
+      "id": "hrv_night",
+      "group": "recovery",
+      "name": "夜间 HRV",
+      "range": "只和自己比。最近 7 晚的均值落在个人基线 ±0.5 个标准差之内算平稳。",
+      "method": "取每晚睡眠时段内 HRV（SDNN）读数的平均值，取自然对数后计算。最近 7 晚（至少 4 晚有数据）的均值，对比再往前 60 天（至少 20 晚有数据）的均值和标准差。周报只在它连续 3 天低于平稳带下沿时才提示。",
+      "params": {
+        "recent_days": 7,
+        "min_recent": 4,
+        "baseline_days": 60,
+        "min_baseline": 20,
+        "band_sd": 0.5,
+        "min_sd": 0.05,
+        "low_run_days": 3
+      },
+      "grade": "B",
+      "grade_note": "按 HRV 调整训练的对照试验，大多拿 7 日均值对比 3 到 4 周基线的 ±0.5 个标准差，对象是耐力运动员，测的是晨起 RMSSD。这里用的是睡眠中的 SDNN 和 60 天滚动基线，人群和测法都不同。荟萃分析显示，这种做法相对固定计划的优势很小。",
+      "caveats": [
+        "HRV 敏感但不特异：训练、饮酒、生病、压力、睡得少都会让它下降，单看 HRV 分不出原因。",
+        "Apple Watch 全天零散采样，这里只用睡眠时段的读数。",
+        "人和人之间差别很大，数值高低不代表谁更健康。"
+      ],
+      "sources": [
+        {
+          "cite": "Vesterinen V 等. Individual Endurance Training Prescription with Heart Rate Variability. Medicine & Science in Sports & Exercise, 2016.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/26909534/",
+          "finding": "40 名业余跑者：只在 HRV 处于个人“最小有意义变化”范围内时安排中高强度训练。这一组的高强度课更少，3000 米成绩提高 2.1%；固定计划组提高 1.1%，不显著。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Manresa-Rocamora A 等. Heart Rate Variability-Guided Training for Enhancing Cardiac-Vagal Modulation, Aerobic Fitness, and Endurance Performance: A Methodological Systematic Review with Meta-Analysis. International Journal of Environmental Research and Public Health, 2021.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/34639599/",
+          "finding": "荟萃分析：按 HRV 调整训练能更好地维持迷走神经相关的 HRV，对有氧能力和耐力表现的优势小且不显著。纳入的研究里，三项用 7 日均值对比基线均值 ±0.5 个标准差，基线期为 3 到 4 周。",
+          "checked": "fulltext"
+        },
+        {
+          "cite": "Altini M, Plews D. What Is behind Changes in Resting Heart Rate and Heart Rate Variability? A Large-Scale Analysis of Longitudinal Measurements Acquired in Free-Living. Sensors, 2021.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/34883936/",
+          "finding": "2.8 万人、约 900 万次晨起测量：生病时心率升高约 6%、HRV 下降约 10%；大量饮酒后心率升高约 6%、HRV 下降约 12%。HRV 比心率敏感，但不特异。",
+          "checked": "fulltext"
+        },
+        {
+          "cite": "Plews DJ 等. Training adaptation and heart rate variability in elite endurance athletes: opening the door to effective monitoring. Sports Medicine, 2013.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/23852425/",
+          "finding": "综述：把 HRV 当作逐日监测工具存在方法问题，建议采用合适的平均方法，而不是看单日数值。",
+          "checked": "abstract"
+        }
+      ]
+    },
+    {
+      "id": "rhr",
+      "group": "recovery",
+      "name": "静息心率",
+      "range": "只和自己比。最近 7 天的均值比个人基线高出 2 个标准差以上，算明显偏高。",
+      "method": "用 Apple Watch 给出的每日静息心率。最近 7 天（至少 4 天有数据）的均值，对比再往前 60 天（至少 20 天有数据）的均值和标准差。",
+      "params": {
+        "recent_days": 7,
+        "min_recent": 4,
+        "baseline_days": 60,
+        "min_baseline": 20,
+        "high_sd": 2.0,
+        "min_sd": 1.0
+      },
+      "grade": "B",
+      "grade_note": "大样本可穿戴数据显示每个人的静息心率相当稳定，偏离个人常态才有信息量。“2 个标准差”是这里选的界线，不是临床标准。",
+      "caveats": [
+        "发烧、饮酒、脱水、压力、睡眠不足、天气炎热都会让静息心率暂时升高。",
+        "不同设备的静息心率算法不同，换设备前后不宜直接比较。"
+      ],
+      "sources": [
+        {
+          "cite": "Quer G 等. Inter- and intraindividual variability in daily resting heart rate and its associations with age, sex, sleep, BMI, and time of year: Retrospective, longitudinal cohort study of 92,457 adults. PLOS ONE, 2020.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/32023264/",
+          "finding": "9.2 万人、最长两年：人与人之间的静息心率最多相差 70 次/分，而同一个人一周内的变化通常只有约 3 次/分；比自己的平均值高出 2 个标准差以上的情况很少，两年里的中位数是 3 次。",
+          "checked": "fulltext"
+        },
+        {
+          "cite": "Mishra T 等. Pre-symptomatic detection of COVID-19 from smartwatch data. Nature Biomedical Engineering, 2020.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/33208926/",
+          "finding": "回顾性分析：依据静息心率相对个人基线的明显升高，63% 的新冠病例可以在症状出现之前被发现。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Zhang D 等. Resting heart rate and all-cause and cardiovascular mortality in the general population: a meta-analysis. CMAJ, 2016.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/26598376/",
+          "finding": "46 项队列研究的荟萃分析：静息心率每高 10 次/分，全因死亡风险高 9%。这说的是长期水平，不是几天的波动。",
+          "checked": "abstract"
+        }
+      ]
+    },
+    {
+      "id": "night_vitals",
+      "group": "recovery",
+      "name": "夜间体征同时偏离",
+      "range": "同一晚有 2 项或更多夜间体征明显偏离个人基线（2 个标准差），才值得留意。",
+      "method": "看五项夜间指标：睡眠心率、睡眠 HRV、呼吸频率、手腕温度、睡眠血氧。每项都和此前 28 天（至少 10 晚有数据）的均值和标准差比较，只统计不利方向的偏离：心率、呼吸、腕温偏高，HRV、血氧偏低。当晚至少有 3 项可以比较才给结果。",
+      "params": {
+        "baseline_days": 28,
+        "min_baseline": 10,
+        "outlier_sd": 2.0,
+        "min_signals": 3,
+        "min_outliers": 2,
+        "signals": {
+          "sleepHr": {
+            "worse": "high",
+            "min_sd": 1.5
+          },
+          "sleepHrv": {
+            "worse": "low",
+            "log": true,
+            "min_sd": 0.08
+          },
+          "resp": {
+            "worse": "high",
+            "min_sd": 0.3
+          },
+          "wristTemp": {
+            "worse": "high",
+            "min_sd": 0.15
+          },
+          "sleepSpo2": {
+            "worse": "low",
+            "min_sd": 0.6
+          }
+        }
+      },
+      "grade": "B",
+      "grade_note": "思路和 Apple 的 Vitals 一致：多项夜间指标同时超出个人常态才提示。研究支持“生病时心率和呼吸升高、HRV 下降”，但具体界线是这里定的，特意设得不敏感。",
+      "caveats": [
+        "饮酒、熬夜、高海拔、药物、表带太松都可能触发，不一定是生病。",
+        "只偏离一项很常见，通常不用在意。"
+      ],
+      "sources": [
+        {
+          "cite": "Apple. Track your overnight and daytime vitals with Apple Watch.",
+          "url": "https://support.apple.com/en-us/120142",
+          "finding": "Apple 的做法：戴表睡 7 晚后为每项指标建立个人常态范围；夜间指标包括心率、呼吸频率、血氧、手腕温度和睡眠时长，多项超出范围时次日提示，并说明药物、海拔、饮酒、生病都可能造成偏离。",
+          "checked": "official"
+        },
+        {
+          "cite": "Natarajan A 等. Assessment of physiological signs associated with COVID-19 measured using wearable devices. npj Digital Medicine, 2020.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/33299095/",
+          "finding": "2,745 名新冠确诊者的手环数据：生病时呼吸频率和心率通常升高，HRV 下降。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Mishra T 等. Pre-symptomatic detection of COVID-19 from smartwatch data. Nature Biomedical Engineering, 2020.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/33208926/",
+          "finding": "32 例感染者中，26 例的心率、步数或睡眠时长出现了可检测到的变化，多数在症状出现之前或当时就能看到。",
+          "checked": "abstract"
+        }
+      ]
+    },
+    {
+      "id": "sleep_duration",
+      "group": "sleep",
+      "name": "睡眠时长",
+      "range": "成年人每晚 7 小时以上，多数人需要 7 到 9 小时。",
+      "method": "每晚的睡眠合计（含小睡）。看最近 7 天（至少 4 晚有数据）的平均值，以及其中不足 6 小时的晚数。如果手表在睡眠中一直有心率读数，记录的醒来时间之后一小时内却一条也没有，多半是摘了表或没电了，这一晚的记录可能被截断，不参与计算。",
+      "params": {
+        "window_days": 7,
+        "min_nights": 4,
+        "min_hours": 7,
+        "range_hours": [
+          7,
+          9
+        ],
+        "short_night_hours": 6,
+        "short_week_mean_hours": 6.5,
+        "short_nights_in_week": 3,
+        "cut_window_min": 60
+      },
+      "grade": "A",
+      "grade_note": "多个专业学会的共识一致。需要多少因人而异，7 小时是下限，不是目标。",
+      "caveats": [
+        "Apple Watch 对“睡着还是醒着”的判断和多导睡眠图接近，总时长比分期可靠。",
+        "偶尔一晚睡得少很正常，持续不足才有影响。"
+      ],
+      "sources": [
+        {
+          "cite": "Watson NF 等. Recommended Amount of Sleep for a Healthy Adult: A Joint Consensus Statement of the American Academy of Sleep Medicine and Sleep Research Society. Journal of Clinical Sleep Medicine, 2015.",
+          "url": "https://www.aasm.org/resources/pdf/adultsleepdurationconsensus.pdf",
+          "finding": "美国睡眠医学会与睡眠研究学会的共识：成年人应规律地每晚睡 7 小时或以上；长期不足 7 小时与多种不良健康结局相关。",
+          "checked": "secondary"
+        },
+        {
+          "cite": "Hirshkowitz M 等. National Sleep Foundation's sleep time duration recommendations: methodology and results summary. Sleep Health, 2015.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/29073412/",
+          "finding": "美国国家睡眠基金会专家组：青年和成年人 7 到 9 小时，老年人 7 到 8 小时。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Van Dongen HP 等. The cumulative cost of additional wakefulness: dose-response effects on neurobehavioral functions and sleep physiology from chronic sleep restriction and total sleep deprivation. Sleep, 2003.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/12683469/",
+          "finding": "实验室研究（48 名健康成人）：连续 14 天每晚只睡 4 或 6 小时，认知表现逐日累积下降，而自我感觉的困倦没有同步加重。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "健康中国行动推进委员会. 健康中国行动（2019—2030 年）. 2019.（据新华社报道）",
+          "url": "https://www.xinhuanet.com/politics/2019-07/23/c_1124787909.htm",
+          "finding": "倡导性目标：成人每日平均睡眠时间保持在 7 到 8 小时。",
+          "checked": "secondary"
+        }
+      ]
+    },
+    {
+      "id": "sleep_debt",
+      "group": "sleep",
+      "name": "近两周睡眠欠账",
+      "range": "没有公认的界线。这里把两周累计欠 7 小时以上（平均每晚少睡半小时）作为值得留意的程度。",
+      "method": "把最近 14 天里每晚的“个人睡眠需求 − 实际睡眠”相加，多睡的晚上可以抵消少睡的晚上。至少 10 晚有数据才计算。睡眠需求默认 8 小时，可以在 config.json 的 sleep_need_hours 里改。",
+      "params": {
+        "need_hours": 8,
+        "window_days": 14,
+        "min_nights": 10,
+        "note_hours": 7
+      },
+      "grade": "C",
+      "grade_note": "“欠账”是一种简化的记账方式。研究确认睡眠不足的影响会累积，但能不能按小时一比一补回来没有定论，个人需求也只能估计。",
+      "caveats": [
+        "结果对“睡眠需求”这个设定很敏感：把 8 小时改成 7.5 小时，两周的结果就相差 7 小时。请按自己不设闹钟时自然能睡多久来设。",
+        "补回来比欠下去慢：一项研究里，1 小时的欠账用了 4 天充足睡眠才恢复。"
+      ],
+      "sources": [
+        {
+          "cite": "Van Dongen HP 等. The cumulative cost of additional wakefulness: dose-response effects on neurobehavioral functions and sleep physiology from chronic sleep restriction and total sleep deprivation. Sleep, 2003.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/12683469/",
+          "finding": "连续 14 天睡眠受限，认知表现的下降按天累积，并且和少睡的量成比例。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Kitamura S 等. Estimating individual optimal sleep duration and potential sleep debt. Scientific Reports, 2016.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/27775095/",
+          "finding": "实验室延长睡眠研究：每个人的最佳睡眠时长不同；习惯时长和最佳时长的差距（潜在睡眠债）比实际睡眠时长更能解释困倦；1 小时的潜在睡眠债需要 4 天才能恢复。",
+          "checked": "abstract"
+        }
+      ]
+    },
+    {
+      "id": "sleep_regularity",
+      "group": "sleep",
+      "name": "作息规律指数（SRI）",
+      "range": "通常在 0 到 100 之间，越高越规律。大型队列的中位数约 81；低于 71.6 属于最不规律的五分之一。",
+      "method": "任取相隔 24 小时的两个时刻，你处在同一状态（都睡着或都醒着）的概率，换算成完全规律为 100、完全随机为 0。按分钟比较相邻的两天，取最近 28 对相邻日的平均（至少 14 对有数据）；另算最近 7 对的短期值（至少 5 对）。小睡计入睡眠。",
+      "params": {
+        "window_days": 28,
+        "min_pairs": 14,
+        "week_days": 7,
+        "min_pairs_week": 5,
+        "low": 71.6,
+        "median": 81.0,
+        "quintile_cuts": [
+          71.6,
+          78.6,
+          83.2,
+          87.3
+        ]
+      },
+      "grade": "B",
+      "grade_note": "英国生物样本库 6 万人的前瞻性研究发现，作息规律比睡眠时长更能预测死亡风险。这是观察性研究，参与者平均 63 岁，用的是 7 天的腕部加速度计。",
+      "caveats": [
+        "参照人群比多数 Apple Watch 用户年长，分位数只作参照；和自己的过去比更有意义。",
+        "跨时区旅行的日子按当地时间计算，指数会暂时下降。",
+        "没戴表的夜晚不参与计算。"
+      ],
+      "sources": [
+        {
+          "cite": "Phillips AJK 等. Irregular sleep/wake patterns are associated with poorer academic performance and delayed circadian and sleep/wake timing. Scientific Reports, 2017.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/28607474/",
+          "finding": "提出 SRI：相隔 24 小时的任意两个时刻处于同一状态（睡或醒）的概率，每天作息完全相同为 100，完全随机为 0。61 名大学生里，作息不规律的人生物钟更晚、成绩更低。",
+          "checked": "fulltext"
+        },
+        {
+          "cite": "Windred DP 等. Sleep regularity is a stronger predictor of mortality risk than sleep duration: A prospective cohort study. Sleep, 2024.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/37738616/",
+          "finding": "60,977 人、平均随访 6.3 年：SRI 中位数 81.0（四分位距 73.8–86.3）。与最不规律的五分之一（SRI 低于 71.6）相比，其余四组的全因死亡风险低 20% 到 48%；规律性的预测力强于睡眠时长。",
+          "checked": "fulltext"
+        }
+      ]
+    },
+    {
+      "id": "sleep_timing_variability",
+      "group": "sleep",
+      "name": "入睡时间与睡眠时长的波动",
+      "range": "最近 7 晚入睡时间的标准差在 30 分钟以内最好，超过 90 分钟属于波动大；睡眠时长的标准差在 60 分钟以内最好，超过 120 分钟属于波动大。",
+      "method": "最近 7 晚（至少 5 晚有数据）入睡时间的标准差，以及每日睡眠合计（含小睡）的标准差。入睡时间取当晚最长一段睡眠的开始。",
+      "params": {
+        "window_days": 7,
+        "min_nights": 5,
+        "onset_sd_low": 30,
+        "onset_sd_high": 90,
+        "duration_sd_low": 60,
+        "duration_sd_high": 120
+      },
+      "grade": "B",
+      "grade_note": "来自一项 1,992 人的前瞻性队列，方向和 SRI 的研究一致。参与者是中老年人，心血管事件只有 111 例，中间两档的差异不显著。",
+      "caveats": [
+        "界线来自中老年人群，对年轻人只能当参照。",
+        "这里衡量的是“每天差多少”，不是“睡得早还是晚”。",
+        "研究里的睡眠时长只算夜间那一段；这里把小睡也算进当天的时长，中途醒来很久又睡着的夜晚才不会被当成只睡了半夜。"
+      ],
+      "sources": [
+        {
+          "cite": "Huang T 等. Sleep Irregularity and Risk of Cardiovascular Events: The Multi-Ethnic Study of Atherosclerosis. Journal of the American College of Cardiology, 2020.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/32138974/",
+          "finding": "1,992 人、7 天腕动仪、随访中位 4.9 年：睡眠时长标准差超过 120 分钟的人，心血管事件风险是 60 分钟以内者的 2.14 倍；入睡时间标准差超过 90 分钟的人，是 30 分钟以内者的 2.11 倍。",
+          "checked": "abstract"
+        }
+      ]
+    },
+    {
+      "id": "steps",
+      "group": "activity",
+      "name": "日均步数",
+      "range": "每天约 7,000 步已有大部分获益；60 岁以下到 8,000–10,000 步、60 岁及以上到 6,000–8,000 步后趋于平缓。少于 5,000 步算活动偏少。",
+      "method": "多设备去重后的每日步数，取最近 7 天（至少 5 天有数据）的平均值。导出当天不完整，不计入。",
+      "params": {
+        "window_days": 7,
+        "min_days": 5,
+        "low": 5000,
+        "target": 7000,
+        "plateau_under_60": [
+          8000,
+          10000
+        ],
+        "plateau_60_plus": [
+          6000,
+          8000
+        ]
+      },
+      "grade": "A",
+      "grade_note": "多项大型荟萃分析结论一致：步数越多风险越低，到一定水平后趋于平缓。属于观察性证据，但剂量反应关系稳定。",
+      "caveats": [
+        "步数只反映走和跑，骑车、游泳、力量训练不计入。",
+        "没带手机也没戴表的时段会漏记。"
+      ],
+      "sources": [
+        {
+          "cite": "Ding D 等. Daily steps and health outcomes in adults: a systematic review and dose-response meta-analysis. The Lancet Public Health, 2025.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/40713949/",
+          "finding": "57 项研究的系统综述：全因死亡等结局的拐点在每天 5,000 到 7,000 步左右；与 2,000 步相比，7,000 步的全因死亡风险低 47%。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Paluch AE 等. Daily steps and all-cause mortality: a meta-analysis of 15 international cohorts. The Lancet Public Health, 2022.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/35247352/",
+          "finding": "15 个队列、47,471 人：死亡风险随步数增加持续下降，60 岁及以上到每天 6,000–8,000 步、60 岁以下到 8,000–10,000 步后趋于平缓。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Tudor-Locke C 等. A step-defined sedentary lifestyle index: <5000 steps/day. Applied Physiology, Nutrition, and Metabolism, 2013.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/23438219/",
+          "finding": "综述：成年人每天少于 5,000 步，可以作为“久坐生活方式”的步数界线。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "中国营养学会. 中国居民膳食指南（2022）.（据中国疾控中心英文摘要）",
+          "url": "https://en.chinacdc.cn/health_topics/nutrition_health/202206/t20220616_259702.html",
+          "finding": "推荐每周至少 5 天进行中等强度身体活动，累计 150 分钟以上；每天的活动量相当于 6,000 步；久坐不超过 1 小时。",
+          "checked": "official"
+        }
+      ]
+    },
+    {
+      "id": "activity_minutes",
+      "group": "activity",
+      "name": "每周运动分钟",
+      "range": "每周 150 到 300 分钟中等强度，或 75 到 150 分钟高强度，或两者的等量组合。",
+      "method": "把 Apple Watch 记录的“锻炼分钟”（强度达到快走及以上的分钟数）近 7 天相加，近似代表中等及以上强度的活动时间。缺数据的日子按其余日子的平均补齐，至少 5 天有数据才计算。某一天有心率记录的时段不到 40%，说明基本没戴表，这一天按缺数据处理。",
+      "params": {
+        "window_days": 7,
+        "min_days": 5,
+        "moderate_min": [
+          150,
+          300
+        ],
+        "vigorous_min": [
+          75,
+          150
+        ],
+        "min_wear_percent": 40
+      },
+      "grade": "A",
+      "grade_note": "世卫组织和中国指南的推荐一致。这里用“锻炼分钟”近似，分不出中等强度和高强度，所以只和 150 到 300 分钟这一档比。",
+      "caveats": [
+        "“锻炼分钟”的强度门槛由 Apple Watch 判定，和指南里的“中等强度”不完全等同。",
+        "有运动总比没有好；达不到推荐量时，多动一点也有益。"
+      ],
+      "sources": [
+        {
+          "cite": "Bull FC 等. World Health Organization 2020 guidelines on physical activity and sedentary behaviour. British Journal of Sports Medicine, 2020.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/33239350/",
+          "finding": "成年人每周 150 到 300 分钟中等强度，或 75 到 150 分钟高强度有氧活动，或等量组合；任何身体活动都比没有好。",
+          "checked": "fulltext"
+        },
+        {
+          "cite": "《中国人群身体活动指南》编写委员会. 中国人群身体活动指南（2021）. 中华预防医学杂志, 2022.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/35092983/",
+          "finding": "18 到 64 岁成年人：每周 150 到 300 分钟中等强度或 75 到 150 分钟高强度有氧活动，每周至少 2 天肌肉力量练习。",
+          "checked": "secondary"
+        },
+        {
+          "cite": "Apple. Close Your Rings.",
+          "url": "https://www.apple.com/watch/close-your-rings/",
+          "finding": "“锻炼”圆环统计强度达到或超过快走的活动分钟数。",
+          "checked": "official"
+        }
+      ]
+    },
+    {
+      "id": "strength_days",
+      "group": "activity",
+      "name": "每周力量训练天数",
+      "range": "每周至少 2 天，练到主要肌群。",
+      "method": "最近 7 天里有力量类训练记录的天数。计入的类型：传统力量训练、功能性力量训练、核心训练。",
+      "params": {
+        "window_days": 7,
+        "min_days_per_week": 2,
+        "types": [
+          "TraditionalStrengthTraining",
+          "FunctionalStrengthTraining",
+          "CoreTraining"
+        ]
+      },
+      "grade": "A",
+      "grade_note": "世卫组织的强推荐，中等确定性证据。",
+      "caveats": [
+        "只统计在手表上记录为力量类的训练；没开训练记录的不会被算进来。"
+      ],
+      "sources": [
+        {
+          "cite": "Bull FC 等. World Health Organization 2020 guidelines on physical activity and sedentary behaviour. British Journal of Sports Medicine, 2020.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/33239350/",
+          "finding": "成年人每周应有 2 天或更多进行中等或更高强度、涉及所有主要肌群的肌肉力量活动。",
+          "checked": "fulltext"
+        }
+      ]
+    },
+    {
+      "id": "training_load",
+      "group": "training",
+      "name": "训练负荷变化",
+      "range": "最近 7 天的负荷相当于此前 4 周周均的 0.8 到 1.3 倍算平稳；超过 1.5 倍说明加量较快，不到 0.5 倍说明明显少于平时。",
+      "method": "每次训练的负荷 = 费力度（1 到 10）× 时长（分钟）。没有费力度的训练，用此前同类型训练的中位数代替，没有可参考的按 5 计。最近 7 天的总负荷，除以再往前 28 天的周均负荷。此前的周均负荷低于 150（约等于每周一次半小时的中等强度训练）时不算比值。",
+      "params": {
+        "acute_days": 7,
+        "chronic_days": 28,
+        "default_effort": 5,
+        "min_chronic_weekly": 150,
+        "steady_ratio": [
+          0.8,
+          1.3
+        ],
+        "high_ratio": 1.5,
+        "low_ratio": 0.5,
+        "restart_ratio": 3
+      },
+      "grade": "C",
+      "grade_note": "“费力度 × 时长”是验证过的负荷量化方法，Apple 的训练负荷也是拿最近 7 天和此前 28 天比。但用这个比值预测受伤的证据有争议，有研究者认为不该据此给训练建议。这里只把它当作“最近加量快不快”的提醒。",
+      "caveats": [
+        "力量训练时心率不高但很累，所以这里用费力度而不是心率来算负荷。",
+        "停练一段时间后恢复训练，比值会很高，这是基数小造成的。比值超过 3 倍时，周报按“刚恢复训练”处理，不再报具体倍数。",
+        "比值高不等于会受伤。"
+      ],
+      "sources": [
+        {
+          "cite": "Foster C 等. A new approach to monitoring exercise training. Journal of Strength and Conditioning Research, 2001.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/11708692/",
+          "finding": "“主观费力度 × 时长”和基于心率的方法高度一致，适用于稳态、间歇和球类等多种运动。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Apple. Apple Watch User Guide: Track your training load.",
+          "url": "https://support.apple.com/guide/watch/apde4c07a6cf/watchos",
+          "finding": "Apple 的训练负荷：把最近 7 天训练的强度和时长与此前 28 天比较，从“远低于”到“远高于”分级。",
+          "checked": "official"
+        },
+        {
+          "cite": "Gabbett TJ. The training-injury prevention paradox: should athletes be training smarter and harder? British Journal of Sports Medicine, 2016.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/26758673/",
+          "finding": "提出急慢性负荷比：0.8 到 1.3 为“甜区”，1.5 以上为“危险区”。依据主要来自板球、澳式足球和橄榄球运动员。",
+          "checked": "fulltext"
+        },
+        {
+          "cite": "Impellizzeri FM 等. Acute:Chronic Workload Ratio: Conceptual Issues and Fundamental Pitfalls. International Journal of Sports Physiology and Performance, 2020.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/32502973/",
+          "finding": "方法学批评：负荷比和受伤之间的因果关系没有被证明，比值本身会带来统计假象，没有证据支持据此制定训练建议。",
+          "checked": "abstract"
+        }
+      ]
+    },
+    {
+      "id": "training_gap",
+      "group": "training",
+      "name": "距离上次训练",
+      "range": "超过 10 天没有训练记录时提醒一次。",
+      "method": "从最近一次训练记录到当天的天数。",
+      "params": {
+        "gap_days": 10
+      },
+      "grade": "C",
+      "grade_note": "“10 天”是这里定的提醒线，意思是已经错过了一整周的推荐运动量。停练几周内心肺适能会回落，力量下降较慢。",
+      "caveats": [
+        "没有记录不等于没有运动；生病、受伤、出行时停练是合理的。"
+      ],
+      "sources": [
+        {
+          "cite": "Mujika I, Padilla S. Detraining: loss of training-induced physiological and performance adaptations. Part I: short term insufficient training stimulus. Sports Medicine, 2000.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/10966148/",
+          "finding": "综述：停练不足 4 周，高水平运动员的最大摄氧量和血容量下降较快，训练年限短的人变化较小；力量表现下降有限。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Bull FC 等. World Health Organization 2020 guidelines on physical activity and sedentary behaviour. British Journal of Sports Medicine, 2020.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/33239350/",
+          "finding": "没达到推荐量的人，可以从少量活动开始，逐步增加频率、强度和时长。",
+          "checked": "fulltext"
+        }
+      ]
+    },
+    {
+      "id": "rhr_long",
+      "group": "long",
+      "name": "静息心率的长期变化",
+      "range": "成年人静息心率常见范围是 60 到 100 次/分，常运动的人可以更低。近 30 天的平均值比此前三个月高出 5 次/分以上，或达到 100，值得留意。",
+      "method": "近 30 天（至少 10 天有数据）的平均静息心率，对比再往前 90 天（至少 20 天）的平均值。",
+      "params": {
+        "recent_days": 30,
+        "min_recent": 10,
+        "prior_days": 90,
+        "min_prior": 20,
+        "rise_bpm": 5,
+        "high_bpm": 100
+      },
+      "grade": "C",
+      "grade_note": "“60 到 100”是通行的参考范围。静息心率多年间升高与心脏病死亡风险相关，但研究看的是十年尺度；“一个月比前三个月高 5”是这里定的提醒线。",
+      "caveats": [
+        "训练量变化、生病、药物、压力、天气变热、换设备，都会让静息心率在几周里变化。",
+        "这只是提示“和自己比变了”，不说明原因。"
+      ],
+      "sources": [
+        {
+          "cite": "American Heart Association. Target Heart Rates Chart.",
+          "url": "https://www.heart.org/en/healthy-living/fitness/fitness-basics/target-heart-rates",
+          "finding": "多数成年人的静息心率在 60 到 100 次/分之间属于正常；运动员或活动量大的人可以低到 40。",
+          "checked": "official"
+        },
+        {
+          "cite": "Nauman J 等. Temporal changes in resting heart rate and deaths from ischemic heart disease. JAMA, 2011.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/22187277/",
+          "finding": "挪威约 2.9 万人、两次测量相隔约 10 年：静息心率从低于 70 升到高于 85 的人，缺血性心脏病死亡风险是两次都低于 70 者的 1.9 倍。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Quer G 等. Inter- and intraindividual variability in daily resting heart rate and its associations with age, sex, sleep, BMI, and time of year: Retrospective, longitudinal cohort study of 92,457 adults. PLOS ONE, 2020.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/32023264/",
+          "finding": "9.2 万人、最长两年：人与人之间的静息心率最多相差 70 次/分，而同一个人一周内的变化通常只有约 3 次/分；比自己的平均值高出 2 个标准差以上的情况很少，两年里的中位数是 3 次。",
+          "checked": "fulltext"
+        }
+      ]
+    },
+    {
+      "id": "spo2_long",
+      "group": "long",
+      "name": "睡眠血氧",
+      "range": "血氧读数 95% 到 100% 属于健康范围，低于 90% 算偏低。近 30 天里有 5 晚以上整晚平均低于 90%，或 30 天平均低于 92%，值得确认。",
+      "method": "看近 30 天（至少 10 晚有数据）每晚睡眠期间的血氧平均值：统计低于 90% 的晚数，以及这 30 天的平均。",
+      "params": {
+        "recent_days": 30,
+        "min_nights": 10,
+        "low_percent": 90,
+        "low_nights": 5,
+        "mean_low": 92
+      },
+      "grade": "C",
+      "grade_note": "界线来自对脉搏血氧仪读数的通行解释。手表的血氧不是医疗级测量，所以这里要求“多晚、整晚平均”都偏低才提示。",
+      "caveats": [
+        "腕部血氧受佩戴松紧、手臂姿势、皮肤血流和温度影响，单晚偏低很常见。",
+        "高海拔地区的读数会整体偏低。"
+      ],
+      "sources": [
+        {
+          "cite": "Mayo Clinic. Low blood oxygen (hypoxemia).",
+          "url": "https://www.mayoclinic.org/symptoms/hypoxemia/basics/definition/sym-20050930",
+          "finding": "脉搏血氧仪读数在 95% 到 100% 之间属于健康范围，低于 90% 算偏低；家用设备的读数会受血流、肤色等因素影响。",
+          "checked": "secondary"
+        },
+        {
+          "cite": "Apple. How to use the Blood Oxygen app on Apple Watch.",
+          "url": "https://support.apple.com/120358",
+          "finding": "Apple 说明：皮肤血流、寒冷、运动、手臂姿势、纹身都会影响测量；即使在理想条件下，也不是每次都能得到可靠读数；测量结果不用于医疗目的。",
+          "checked": "official"
+        },
+        {
+          "cite": "Apple. Estimating Breathing Disturbances and Sleep Apnea Risk from Apple Watch. 2024.",
+          "url": "https://www.apple.com/health/pdf/sleep-apnea/Sleep_Apnea_Notifications_on_Apple_Watch_September_2024.pdf",
+          "finding": "每晚的呼吸紊乱以每小时次数表示，不等同于临床上的呼吸暂停低通气指数。手表的通知每 30 天评估一次：至少 10 晚有数据、其中一半以上偏高才提示；测试集上灵敏度 66.6%、特异度 95.9%。文件没有给出“偏高”的具体数值。对照标准是多导睡眠图或家用睡眠监测。",
+          "checked": "official"
+        }
+      ]
+    },
+    {
+      "id": "breathing_long",
+      "group": "long",
+      "name": "睡眠呼吸紊乱",
+      "range": "只和自己比。近 30 天的平均值比此前三个月高出一半以上，并且每小时多 3 次以上，算明显升高。",
+      "method": "近 30 天（至少 10 晚有数据）每小时呼吸紊乱次数的平均值，对比再往前 90 天（至少 20 晚）的平均值。",
+      "params": {
+        "recent_days": 30,
+        "min_nights": 10,
+        "prior_days": 90,
+        "min_prior": 20,
+        "rise_ratio": 1.5,
+        "rise_per_hour": 3
+      },
+      "grade": "C",
+      "grade_note": "Apple 没有公开“偏高”的界线，所以这里不判断高低，只看和你自己过去相比有没有明显升高。这条提醒线是这里定的。",
+      "caveats": [
+        "手表自带的“睡眠呼吸暂停通知”用的是经过临床验证的算法，以它为准；它也会漏掉大约三分之一的中重度情况。",
+        "体重增加、饮酒、鼻塞、仰卧睡都会让这个数值升高。"
+      ],
+      "sources": [
+        {
+          "cite": "Apple. Estimating Breathing Disturbances and Sleep Apnea Risk from Apple Watch. 2024.",
+          "url": "https://www.apple.com/health/pdf/sleep-apnea/Sleep_Apnea_Notifications_on_Apple_Watch_September_2024.pdf",
+          "finding": "每晚的呼吸紊乱以每小时次数表示，不等同于临床上的呼吸暂停低通气指数。手表的通知每 30 天评估一次：至少 10 晚有数据、其中一半以上偏高才提示；测试集上灵敏度 66.6%、特异度 95.9%。文件没有给出“偏高”的具体数值。对照标准是多导睡眠图或家用睡眠监测。",
+          "checked": "official"
+        }
+      ]
+    },
+    {
+      "id": "sleep_long",
+      "group": "long",
+      "name": "长期睡眠偏少",
+      "range": "最近 4 周里有 3 周以上，平均每晚睡不到 6 小时。",
+      "method": "把最近 28 天分成 4 个 7 天，各算一次平均睡眠时长（每段至少 4 晚有数据），数出其中不足 6 小时的周数。至少 3 段有数据才判断。",
+      "params": {
+        "weeks": 4,
+        "short_weeks": 3,
+        "weekly_mean_hours": 6,
+        "min_weeks": 3
+      },
+      "grade": "B",
+      "grade_note": "长期睡眠不足的影响证据充分；“4 周里 3 周不到 6 小时”是这里定的提醒线。",
+      "caveats": [
+        "没戴表的夜晚不会被算进来，所以实际睡眠可能比记录的多。",
+        "是没时间睡，还是有时间却睡不着，手表分不出来，应对方式也不同。"
+      ],
+      "sources": [
+        {
+          "cite": "Watson NF 等. Recommended Amount of Sleep for a Healthy Adult: A Joint Consensus Statement of the American Academy of Sleep Medicine and Sleep Research Society. Journal of Clinical Sleep Medicine, 2015.",
+          "url": "https://www.aasm.org/resources/pdf/adultsleepdurationconsensus.pdf",
+          "finding": "美国睡眠医学会与睡眠研究学会的共识：成年人应规律地每晚睡 7 小时或以上；长期不足 7 小时与多种不良健康结局相关。",
+          "checked": "secondary"
+        },
+        {
+          "cite": "Van Dongen HP 等. The cumulative cost of additional wakefulness: dose-response effects on neurobehavioral functions and sleep physiology from chronic sleep restriction and total sleep deprivation. Sleep, 2003.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/12683469/",
+          "finding": "实验室研究（48 名健康成人）：连续 14 天每晚只睡 4 或 6 小时，认知表现逐日累积下降，而自我感觉的困倦没有同步加重。",
+          "checked": "abstract"
+        }
+      ]
+    },
+    {
+      "id": "weight_long",
+      "group": "long",
+      "name": "体重变化",
+      "range": "半年内体重减轻超过 5%，并且不是有意减重。",
+      "method": "近 30 天（至少 3 次称重）的平均体重，对比 5 到 7 个月前那 60 天（至少 3 次称重）的平均体重。",
+      "params": {
+        "recent_days": 30,
+        "min_recent": 3,
+        "past_from_days": 150,
+        "past_to_days": 210,
+        "min_past": 3,
+        "loss_percent": 5
+      },
+      "grade": "B",
+      "grade_note": "“6 到 12 个月内非有意减轻超过 5%”是临床上通行的定义，相关研究多来自老年人群。",
+      "caveats": [
+        "有意减重、增肌期结束、换了体重秤，都会造成同样的数字变化。",
+        "体重增加不在这一项里提示。"
+      ],
+      "sources": [
+        {
+          "cite": "Sripongpunkul C 等. Factors associated with unintentional weight loss among older adults in a geriatric outpatient clinic of university hospital. PLOS ONE, 2021.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/34793549/",
+          "finding": "非有意体重减轻的定义：6 到 12 个月内比原体重减少超过 5%。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Gaddey HL, Holder KK. Unintentional Weight Loss in Older Adults. American Family Physician, 2021.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/34264616/",
+          "finding": "65 岁以上人群的综述：非恶性疾病是更常见的原因，6% 到 28% 找不到明确原因。建议的初步检查包括血常规、基础代谢指标、肝功能、甲状腺功能、炎症指标等。",
+          "checked": "abstract"
+        }
+      ]
+    },
+    {
+      "id": "vitals_repeat",
+      "group": "long",
+      "name": "夜间体征反复偏离",
+      "range": "近 30 天里出现 3 次以上“多项夜间体征同时偏离”，值得留意。相隔不超过 3 天的夜晚算同一次。",
+      "method": "数近 30 天（至少 15 晚可以判断）里被标出的夜晚，把相隔不超过 3 天的合并成一次。",
+      "params": {
+        "recent_days": 30,
+        "min_nights": 15,
+        "episodes": 3,
+        "gap_days": 3
+      },
+      "grade": "C",
+      "grade_note": "单次偏离很常见，多半有明确原因。“一个月 3 次”是这里定的提醒线。",
+      "caveats": [
+        "经常饮酒或熬夜的人会反复触发，这本身就是有用的信息。"
+      ],
+      "sources": [
+        {
+          "cite": "Apple. Track your overnight and daytime vitals with Apple Watch.",
+          "url": "https://support.apple.com/en-us/120142",
+          "finding": "Apple 的做法：戴表睡 7 晚后为每项指标建立个人常态范围；夜间指标包括心率、呼吸频率、血氧、手腕温度和睡眠时长，多项超出范围时次日提示，并说明药物、海拔、饮酒、生病都可能造成偏离。",
+          "checked": "official"
+        },
+        {
+          "cite": "Natarajan A 等. Assessment of physiological signs associated with COVID-19 measured using wearable devices. npj Digital Medicine, 2020.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/33299095/",
+          "finding": "2,745 名新冠确诊者的手环数据：生病时呼吸频率和心率通常升高，HRV 下降。",
+          "checked": "abstract"
+        }
+      ]
+    },
+    {
+      "id": "ecg",
+      "group": "long",
+      "name": "心电图记录",
+      "range": "近 180 天里有心电图被 Apple 的心电图 App 归类为“心房颤动”。",
+      "method": "读取导出文件里每份心电图的分类结果，统计近 180 天里各类结果的次数。看板不自己分析波形。",
+      "params": {
+        "recent_days": 180
+      },
+      "grade": "B",
+      "grade_note": "这里只是转述 Apple 心电图 App 的分类结果。它是单导联记录，不能替代医院的心电图。",
+      "caveats": [
+        "心电图 App 不能检测心脏病发作。胸痛、胸闷或者明显不舒服时，请直接就医，不要等数据。",
+        "“不确定”和“记录质量不佳”通常是手没放稳，重录一次即可。"
+      ],
+      "sources": [
+        {
+          "cite": "Apple. Take an ECG with the ECG app on Apple Watch.",
+          "url": "https://support.apple.com/en-us/120278",
+          "finding": "分类结果包括窦性心律、心房颤动、心率过低或过高、不确定、记录质量不佳。得到心房颤动的结果而此前没有确诊过的人，应当咨询医生。心电图 App 不能检测心脏病发作。",
+          "checked": "official"
+        }
+      ]
+    }
+  ],
+  "excluded": [
+    {
+      "name": "全天 HRV 均值",
+      "reason": "Apple Watch 白天的 HRV 是零散采样，读数随时段和活动状态变化很大，全天平均值主要取决于采样落在什么时候。判断恢复只用睡眠时段的读数。",
+      "sources": [
+        {
+          "cite": "Buchheit M. Monitoring training status with HR measures: do all roads lead to Rome? Frontiers in Physiology, 2014.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/24578692/",
+          "finding": "综述：用于监测训练状态的心率指标里，在固定的静息条件下（几乎每天）测得的短时记录最有用。",
+          "checked": "abstract"
+        }
+      ]
+    },
+    {
+      "name": "睡眠效率与夜间清醒时长",
+      "reason": "和多导睡眠图相比，Apple Watch 会少算清醒时间，由此算出的睡眠效率普遍偏高，区分度很低。",
+      "sources": [
+        {
+          "cite": "Robbins R 等. Accuracy of Three Commercial Wearable Devices for Sleep Tracking in Healthy Adults. Sensors, 2024.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/39460013/",
+          "finding": "35 名健康成人、同步多导睡眠图：Apple Watch Series 8 平均少算 7 分钟清醒时间、少算 10 分钟入睡后清醒时间；判断“睡着还是醒着”的灵敏度在 95% 以上。",
+          "checked": "fulltext"
+        }
+      ]
+    },
+    {
+      "name": "深睡、快速眼动等分期的时长和占比",
+      "reason": "Apple Watch 的分期和多导睡眠图有系统性偏差。分期可以看自己的趋势，但不拿来和教科书上的比例比，也不参与判断。",
+      "sources": [
+        {
+          "cite": "Robbins R 等. Accuracy of Three Commercial Wearable Devices for Sleep Tracking in Healthy Adults. Sensors, 2024.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/39460013/",
+          "finding": "Apple Watch Series 8 平均少算 43 分钟深睡、多算 45 分钟浅睡。",
+          "checked": "fulltext"
+        }
+      ]
+    },
+    {
+      "name": "单次血氧读数",
+      "reason": "腕部血氧受佩戴位置、手臂姿势、皮肤血流和温度影响，偶尔出现低读数很常见。这里只看整晚平均值相对个人基线的变化。",
+      "sources": [
+        {
+          "cite": "Apple. How to use the Blood Oxygen app on Apple Watch.",
+          "url": "https://support.apple.com/120358",
+          "finding": "Apple 说明：皮肤血流、寒冷、运动、手臂姿势、纹身都会影响测量；即使在理想条件下，也不是每次都能得到可靠读数；测量结果不用于医疗目的。",
+          "checked": "official"
+        }
+      ]
+    }
+  ]
+}

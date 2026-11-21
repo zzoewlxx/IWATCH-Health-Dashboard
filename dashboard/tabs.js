@@ -11,7 +11,7 @@
   // ------------------------------------------------------------------ state
   const PRESETS = [['30', '30 天'], ['90', '90 天'], ['180', '半年'], ['365', '1 年'], ['all', '全部']];
   const GRANS = [['day', '日'], ['week', '周'], ['month', '月']];
-  const state = { tab: 'overview', a: 0, b: N - 1, preset: '90', gran: 'day', theme: 'auto', day: null };
+  const state = { tab: (H.reports || []).length ? 'report' : 'overview', a: 0, b: N - 1, preset: '90', gran: 'day', theme: 'auto', day: null, report: null };
   const store = {
     load() { try { return JSON.parse(localStorage.getItem('hd.state') || '{}'); } catch (e) { return {}; } },
     save() { try { localStorage.setItem('hd.state', JSON.stringify({ preset: state.preset, gran: state.gran, theme: state.theme })); } catch (e) { /* private mode */ } },
@@ -122,6 +122,23 @@
   }
   const grid = (ctx, specs) => el('div', { class: 'grid' }, specs.map((s) => card(s, ctx)));
   const section = (title) => el('h2', { class: 'section-title', text: title });
+  /** what the weekly report (report.js) needs from this file */
+  const ui = {
+    state, card, section, gotoDay,
+    showReport(i) { state.report = i; state.tab = 'report'; history.replaceState(null, '', '#report'); window.scrollTo(0, 0); renderTab(); },
+    goto(id) { state.tab = id; history.replaceState(null, '', '#' + id); window.scrollTo(0, 0); renderTab(); },
+    /** open the notes tab at one entry of the evidence table (or at the table itself) */
+    gotoRef(id) {
+      state.tab = 'notes';
+      history.replaceState(null, '', '#notes');
+      renderTab(() => {
+        const row = id && document.querySelector(`details.ref[data-id="${id}"]`);
+        const target = row || document.getElementById('reference');
+        if (row) row.open = true;
+        if (target) window.scrollTo(0, target.getBoundingClientRect().top + window.scrollY - 110);   // clear the sticky tab bar
+      });
+    },
+  };
 
   // ------------------------------------------------------------------ stat tiles
   /**
@@ -388,6 +405,10 @@
       el('button', { class: 'ghost', type: 'button', text: '后一天 →', onclick: go(d + 1), disabled: d === N - 1 }),
       el('button', { class: 'ghost', type: 'button', text: '最新', onclick: go(HD.lastIntradayDay()) }),
       el('span', { class: 'span', text: WEEKDAY[DOW[d]] + (zone ? ' · ' + zone : '') + (DAYS[d] === H.meta.partialDay ? ' · 导出当天，数据不完整' : '') }));
+    const mark = (H.annotations || []).find((e) => e.d === d);
+    const marks = mark && el('div', { class: 'daytags' },
+      el('span', { class: 'lbl', text: '你的标注' }), mark.tags.map((t) => el('span', { class: 'pill', text: t })),
+      mark.note && el('span', { text: mark.note }));
     const v = (k) => D[k][d];
     const tile = (label, value, unit, note) => plainTile(label, value == null ? '–' : value, value == null ? '' : unit, note);
     const tl = [
@@ -416,7 +437,7 @@
           el('thead', null, el('tr', null, ['类型', '开始', '时长', '活动千卡', '平均心率', '最高心率', '距离'].map((c) => el('th', { text: c })))),
           el('tbody', null, ws.map((w) => el('tr', null, [w.type, w.time, mins(w.min), num(w.kcal), num(w.hrAvg), num(w.hrMax), w.dist ? num(w.dist, 2) + ' 公里' : '–'].map((c) => el('td', { text: c })))))))));
     }
-    return [bar, el('div', { class: 'tiles' }, tl), section('这一天'), el('div', { class: 'grid' }, cards)];
+    return [bar, marks, el('div', { class: 'tiles' }, tl), section('这一天'), el('div', { class: 'grid' }, cards)].filter(Boolean);
   }
   const SC = (title, x, y, lag) => ({ title, span: 4, h: 250, emptyText: '有效数据不足 20 天', build: HD.scatter({ x, y, lag }) });
   const AX = {
@@ -453,6 +474,7 @@
 
   // ------------------------------------------------------------------ tabs
   const TABS = [
+    { id: 'report', name: '周报', noFilters: true, render: (ctx) => HD.reportTab(ctx, ui) },
     {
       id: 'overview', name: '总览', render(ctx) {
         return [
@@ -589,8 +611,56 @@
         ];
       },
     },
+    { id: 'summary', name: '小结', noFilters: true, render: (ctx) => HD.summaryTab(ctx, ui) },
+    { id: 'backtest', name: '回测', noFilters: true, render: (ctx) => HD.backtestTab(ctx, ui) },
     { id: 'notes', name: '数据说明', noFilters: true, render: notes },
   ];
+
+  // ------------------------------------------------------------------ reference table
+  /** The evidence table (pipeline/reference.json): one fold-out row per indicator. */
+  function referenceNodes() {
+    const R = H.reference;
+    if (!R) return [el('div', { class: 'callout', text: '当前的看板数据是旧版本生成的，还没有这张表。重新运行一次更新即可。' })];
+    const sources = (list) => el('ul', { class: 'srcs' }, list.map((s) => el('li', null,
+      el('a', { href: s.url, target: '_blank', rel: 'noopener noreferrer', text: s.cite }),
+      el('div', { text: s.finding }),
+      el('div', { class: 'how', text: R.checked[s.checked] || s.checked }))));
+    const grade = (g) => el('span', { class: 'pill', title: R.grades[g], text: '证据 ' + g });
+    const row = (ind) => el('details', { class: 'ref', 'data-id': ind.id },
+      el('summary', null, el('b', { text: ind.name }), grade(ind.grade), el('span', { class: 'rng', text: ind.range })),
+      el('div', { class: 'ref-body' },
+        el('p', null, el('b', { text: '怎么算：' }), ind.method),
+        el('p', null, el('b', { text: `证据 ${ind.grade}：` }), R.grades[ind.grade] + '。' + ind.grade_note),
+        ind.caveats.length ? el('p', null, el('b', { text: '留意：' })) : null,
+        ind.caveats.length ? el('ul', null, ind.caveats.map((c) => el('li', { text: c }))) : null,
+        el('p', null, el('b', { text: '出处：' })),
+        sources(ind.sources)));
+    const out = [
+      el('p', { id: 'reference', text: R.about }),
+      el('ul', null, R.principles.map((p) => el('li', { text: p }))),
+      el('p', { class: 'ref-legend' }, Object.keys(R.grades).map((g) => el('span', null, el('span', { class: 'pill', text: '证据 ' + g }), ' ' + R.grades[g]))),
+    ];
+    for (const g in R.groups) {
+      const items = R.indicators.filter((ind) => ind.group === g);
+      if (!items.length) continue;
+      out.push(el('h4', { class: 'ref-group', text: R.groups[g] }), ...items.map(row));
+    }
+    if (R.scores) {
+      out.push(el('h4', { class: 'ref-group', text: '周报里的分数' }), el('p', { text: R.scores.about }), el('p', { text: R.scores.note }));
+      for (const key of ['sleep', 'activity']) {
+        const s = R.scores[key];
+        if (!s) continue;
+        out.push(el('details', { class: 'ref' },
+          el('summary', null, el('b', { text: s.label + '分' }), el('span', { class: 'rng', text: s.parts.map((p) => `${p.label} ${p.max} 分`).join(' + ') })),
+          el('div', { class: 'ref-body' }, el('ul', null, s.parts.map((p) => el('li', null, el('b', { text: p.label + '：' }), p.rule))))));
+      }
+    }
+    out.push(el('h4', { class: 'ref-group', text: '没有采用的指标' }),
+      ...R.excluded.map((x) => el('details', { class: 'ref' },
+        el('summary', null, el('b', { text: x.name }), el('span', { class: 'rng', text: x.reason })),
+        el('div', { class: 'ref-body' }, el('p', null, el('b', { text: '出处：' })), sources(x.sources)))));
+    return out;
+  }
 
   // ------------------------------------------------------------------ notes
   function notes(ctx) {
@@ -617,7 +687,10 @@
         el('li', { text: `导出时间 ${m.exportDate}，看板生成于 ${m.generatedAt}` }),
         el('li', { text: `共 ${num(m.records)} 条记录，覆盖 ${m.firstDay} → ${m.lastDay}（${N} 天）` }),
         profile && el('li', { text: '健康 App 中的个人资料：' + profile }),
-        el('li', { text: `${m.partialDay} 是导出当天，步数、能量、心率范围等全天累计值不完整，已从该日剔除；昨夜睡眠等已完成的数据保留。` })),
+        el('li', { text: `${m.partialDay} 是导出当天，步数、能量、心率范围等全天累计值不完整，已从该日剔除；昨夜睡眠等已完成的数据保留。` }),
+        el('li', { text: (H.annotations || []).length
+          ? `你标注了 ${H.annotations.length} 天（来自 标注.csv），在「单日」页可以看到。`
+          : '想记下生病、饮酒、熬夜这样的日子，把 标注.example.csv 复制为 标注.csv 填写，下次更新时会读进来。' })),
       (m.warnings || []).map((w) => el('div', { class: 'callout', text: w })));
 
     add('准确性核对', 6,
@@ -639,6 +712,8 @@
         el('li', null, el('b', { text: '单日详情：' }), '心率按分钟取平均，步数按小时汇总（已去重），都是当地时间。睡眠色带把跨午夜的一晚按日历日切开显示。')),
       el('div', { class: 'callout', text: '本看板只做数据整理与展示，参考范围为通用健康指引，不构成医疗诊断或建议。如有不适或数值持续异常，请咨询医生。' }));
 
+    add('参考区间与出处', 12, ...referenceNodes());
+
     add('所在时区', 6, simpleTable(['起', '止', '时区', '依据'], m.timezones.map((t) => [t.from, t.to, t.tz, how[t.how] || t.how])));
     add('各指标的主要数据来源', 6, simpleTable(['指标', '时间段', '来源', '有数据'], eraRows));
     add('导出文件中的全部记录类型', 12,
@@ -648,7 +723,8 @@
   }
 
   // ------------------------------------------------------------------ rendering
-  function renderTab() {
+  /** `after` runs once the new tab is laid out (used to scroll to something inside it) */
+  function renderTab(after) {
     const y = window.scrollY;
     main.style.minHeight = main.offsetHeight + 'px';
     observer.disconnect();
@@ -659,7 +735,11 @@
     const ctx = context();
     for (const node of tab.render(ctx)) main.append(node);
     document.getElementById('filters').style.display = tab.noFilters ? 'none' : '';
-    requestAnimationFrame(() => { main.style.minHeight = ''; window.scrollTo(0, y); });
+    requestAnimationFrame(() => {
+      main.style.minHeight = '';
+      window.scrollTo(0, y);
+      if (typeof after === 'function') after();
+    });
     syncControls();
   }
   function syncControls() {
@@ -689,6 +769,7 @@
   if (GRANS.some((g) => g[0] === saved.gran)) state.gran = saved.gran;
   if (TABS.some((t) => t.id === location.hash.slice(1))) state.tab = location.hash.slice(1);
   if (/^\d{4}-\d{2}-\d{2}$/.test(qs.get('day') || '')) state.day = HD.indexOfDate(qs.get('day'));
+  if (/^\d{4}-\d{2}-\d{2}$/.test(qs.get('week') || '')) state.report = HD.reportIndex(qs.get('week'));
   applyTheme();
 
   const m = H.meta;

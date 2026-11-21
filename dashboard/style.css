@@ -228,6 +228,109 @@ td.dim { color: var(--muted); }
 .ecg-pick { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .callout { border-left: 3px solid var(--axis); padding: 2px 0 2px 12px; margin: 10px 0; color: var(--ink-2); font-size: 13px; }
 
+/* ---- reference table (notes page) ---- */
+.ref-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; }
+.ref-group { margin: 18px 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 0.04em; }
+.ref { border-top: 1px solid var(--grid); }
+.ref summary { display: flex; align-items: baseline; gap: 10px; padding: 9px 0; cursor: pointer; list-style: none; }
+.ref summary::-webkit-details-marker { display: none; }
+.ref summary::before { content: "▸"; flex: none; width: 10px; color: var(--muted); font-size: 11px; }
+.ref[open] summary::before { content: "▾"; }
+.ref summary:hover b { text-decoration: underline; }
+.ref summary b { flex: none; width: 13em; }
+.ref summary .pill { flex: none; }
+.ref summary .rng { min-width: 0; }
+.ref-body { padding: 0 0 12px 20px; }
+.ref-body p { margin: 8px 0 4px; }
+.notes ul.srcs { list-style: none; padding-left: 0; }
+.notes .srcs li { margin: 8px 0; }
+.srcs a { color: var(--series-1); text-decoration: none; }
+.srcs a:hover { text-decoration: underline; }
+.srcs .how { color: var(--muted); font-size: 12px; }
+@media (max-width: 760px) {
+  .ref summary { flex-wrap: wrap; }
+  .ref summary b { width: auto; }
+  .ref summary .rng { flex-basis: 100%; padding-left: 20px; }
+}
+.daytags { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: -6px 0 16px; color: var(--ink-2); font-size: 13px; }
+.daytags .lbl { color: var(--muted); font-size: 12px; }
+
+/* ---- weekly report ---- */
+.tiles.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) { .tiles.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.daybar .when { font-size: 15px; font-weight: 600; min-width: 10.5em; text-align: center; }
+.report-head { padding: 20px 22px 14px; margin-bottom: 14px; }
+.report-head h2 { margin: 0 0 4px; font-size: 22px; line-height: 1.45; font-weight: 600; max-width: 36em; }
+.tips { margin-top: 14px; }
+.tip { border-top: 1px solid var(--grid); }
+.tip summary, .tips .more > summary { display: flex; align-items: baseline; gap: 12px; padding: 10px 0; cursor: pointer; list-style: none; }
+.tip summary::-webkit-details-marker, .tips .more > summary::-webkit-details-marker { display: none; }
+.tip summary::after { content: "看原因"; margin-left: auto; flex: none; color: var(--muted); font-size: 12px; }
+.tip[open] summary::after { content: "收起"; }
+.tip summary b { font-weight: 600; font-size: 14.5px; }
+.tip summary:hover b { text-decoration: underline; }
+.lvl { flex: none; display: inline-flex; align-items: center; gap: 6px; width: 5.5em; color: var(--ink-2); font-size: 12px; }
+.lvl i { font-style: normal; font-size: 9px; color: var(--muted); }
+.lvl.l3 i { color: var(--status-warning); }
+.tip-body { padding: 0 0 12px calc(5.5em + 12px); color: var(--ink-2); font-size: 13.5px; }
+.tip-body p { margin: 0 0 8px; max-width: 72ch; }
+.basis .lbl { margin: 12px 0 4px; color: var(--muted); font-size: 12px; }
+.basis p { font-size: 12.5px; }
+.basis b { color: var(--ink); font-weight: 600; }
+button.link { border: 0; background: none; padding: 0; color: var(--series-1); cursor: pointer; font-size: inherit; }
+button.link:hover { text-decoration: underline; }
+.tips .more { border-top: 1px solid var(--grid); }
+.tips .more > summary { color: var(--ink-2); font-size: 13px; }
+.tips .more > summary::after { content: "展开"; margin-left: auto; color: var(--muted); font-size: 12px; }
+.tips .more[open] > summary::after { content: "收起"; }
+.card .figure { flex: none; text-align: right; white-space: nowrap; }
+.card .figure b { font-size: 26px; font-weight: 600; line-height: 1.1; letter-spacing: -0.01em; }
+.card .figure small { color: var(--ink-2); font-size: 13px; }
+.card .figure .word { color: var(--ink-2); font-size: 14px; }
+.meter .fact { margin-top: 5px; color: var(--muted); font-size: 12px; }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 18px 0 2px; font-size: 13px; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+tr.go { cursor: pointer; }
+tr.go:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
+tr.on td { background: var(--wash); font-weight: 600; }
+td.mark { font-weight: 600; }
+td .pill { margin-right: 4px; }
+@media (max-width: 640px) {
+  .report-head h2 { font-size: 19px; }
+  .tip-body { padding-left: 0; }
+}
+
+/* ---- long-window checks ---- */
+.longs { margin-top: 8px; }
+.long { display: flex; align-items: baseline; gap: 14px; padding: 9px 0; border-top: 1px solid var(--grid); font-size: 13.5px; }
+.long .st { flex: none; display: inline-flex; align-items: center; gap: 6px; width: 10.5em; color: var(--ink-2); font-size: 12.5px; }
+.long .st i { font-style: normal; font-size: 11px; width: 12px; text-align: center; color: var(--muted); }
+.long.ok .st i { color: var(--status-good); }
+.long.note .st i { color: var(--status-warning); font-size: 9px; }
+.long.note .st { color: var(--ink); font-weight: 600; }
+.long b { font-weight: 600; margin-right: 12px; }
+.long .fact { color: var(--ink-2); }
+.long.none b, .long.none .fact { color: var(--muted); font-weight: 500; }
+.long p { margin: 6px 0 4px; max-width: 72ch; color: var(--ink-2); }
+@media (max-width: 640px) { .long { flex-wrap: wrap; gap: 4px 14px; } .long .st { width: auto; } }
+
+/* ---- printing the summary ---- */
+@media print {
+  :root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
+    color-scheme: light;
+    --plane: #fff; --surface: #fff; --ink: #000; --ink-2: #333; --muted: #555; --grid: #ccc; --axis: #999;
+    --border: rgba(0, 0, 0, 0.25); --wash: transparent; --status-good: #0a7a0a; --status-warning: #a86b00;
+  }
+  .top, .controls, .noprint, .card .tools { display: none !important; }
+  main { padding: 0; }
+  .wrap { max-width: none; padding: 0; }
+  .card { break-inside: avoid; border-radius: 0; border-width: 0 0 1px; padding: 10px 0; }
+  .tablewrap { max-height: none !important; overflow: visible !important; }
+  th { position: static; }
+  body { font-size: 12px; }
+}
+
 /* ---- insights ---- */
 .legend i.wash { opacity: 0.3; }
 .card .desc.note { color: var(--ink-2); font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }

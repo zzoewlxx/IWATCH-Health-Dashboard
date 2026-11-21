@@ -78,7 +78,7 @@ def _mean(xs: list[float]) -> float | None:
 
 
 def build_nights(samples: list[tuple], tl: Timeline, rank: dict[int, int], day0: int, ndays: int,
-                 hr: list[tuple], hrv: list[tuple], spo2: list[tuple]) -> dict:
+                 hr: list[tuple], hrv: list[tuple], spo2: list[tuple], cut_window: int = 3600) -> dict:
     per_src: dict[int, dict[str, list]] = defaultdict(lambda: {"stage": [], "inbed": []})
     for s, e, val, src, _tz in samples:
         if e <= s:
@@ -103,7 +103,7 @@ def build_nights(samples: list[tuple], tl: Timeline, rank: dict[int, int], day0:
 
     keys = ["sleepTotal", "sleepDeep", "sleepCore", "sleepRem", "sleepUnspec", "sleepAwake", "sleepInBed",
             "sleepNap", "bedtime", "waketime", "sleepEff", "wakeCount", "sleepHr", "sleepHrLow",
-            "sleepHrv", "sleepSpo2", "deepPct", "remPct", "corePct"]
+            "sleepHrv", "sleepSpo2", "deepPct", "remPct", "corePct", "sleepCut"]
     out: dict[str, list] = {k: [None] * ndays for k in keys}
     kind: list[str | None] = [None] * ndays
     src_of: list[int | None] = [None] * ndays
@@ -159,6 +159,11 @@ def build_nights(samples: list[tuple], tl: Timeline, rank: dict[int, int], day0:
                 for t, v in beats:
                     bins[t // 300].append(v)
                 out["sleepHrLow"][d] = min(sum(v) / len(v) for v in bins.values())
+                # Heart rate was being read all night; if the readings stop the moment sleep
+                # "ends", the watch came off (or ran flat) and the record may be cut short.
+                # Unknown when the export itself ends inside the window.
+                if hr_s.ts[-1] >= wake + cut_window:
+                    out["sleepCut"][d] = 0 if hr_s.within([(wake + 1, wake + cut_window)]) else 1
             out["sleepHrv"][d] = _mean(hrv_s.within([(main["start"], main["end"])]))
             out["sleepSpo2"][d] = _mean(spo2_s.within([(main["start"], main["end"])]))
         else:

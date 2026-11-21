@@ -2,11 +2,14 @@
 
 Tables
   daily              one row per local calendar day, every dashboard metric as a column
-  metrics            data dictionary for the columns of ``daily`` (label, unit)
+  analysis           one row per day: personal baselines, sleep regularity, training load
+  reports            one row per weekly report: scores, states, suggestions
+  metrics            data dictionary for the columns of ``daily`` and ``analysis`` (label, unit)
   samples            every raw sample of the supported types (compact; use the view below)
   types / sources    lookup tables for ``samples``
   sleep_segments     the sleep-stage segments the dashboard uses, one row per segment
   workouts           one row per workout
+  annotations        the wearer's own day tags (from 标注.csv), one row per tag
   activity_summary   Apple's own per-day ring totals, as exported
   timezones          where the wearer was (zone per date range, and how it was determined)
   ecg                ECG recordings (metadata only)
@@ -40,6 +43,8 @@ METRIC_INFO = {
     "rhr": ("静息心率", "bpm"), "hrv": ("心率变异性 SDNN（日均）", "ms"), "walkHr": ("步行平均心率", "bpm"),
     "hrMin": ("全天最低心率", "bpm"), "hrMax": ("全天最高心率", "bpm"),
     "hrAvg": ("全天平均心率（5 分钟分箱）", "bpm"), "vo2max": ("最大摄氧量", "ml/kg·min"),
+    "wear": ("佩戴覆盖：全天有心率读数的 5 分钟时段占比", "%"),
+    "sleepCut": ("睡眠记录可能被截断（醒来后一小时内没有心率读数）", "1 = 是，0 = 否"),
     "resp": ("睡眠呼吸频率", "次/分"), "spo2": ("血氧（日均）", "%"), "spo2Min": ("血氧（当日最低读数）", "%"),
     "wristTemp": ("睡眠手腕温度", "°C"), "breathDist": ("睡眠呼吸紊乱", "次/小时"),
     "sleepTotal": ("睡眠合计（含小睡）", "小时"), "sleepDeep": ("深睡", "小时"), "sleepCore": ("核心睡眠", "小时"),
@@ -79,7 +84,9 @@ def _local(day_index_date: str, minute: int) -> str:
 
 def write_db(path: Path, *, store: Store, tl: Timeline, rank: dict[int, int], days: list[str],
              daily: dict[str, list], sleep_kind: list, sleep_segments: list, workouts: list[dict],
-             ecgs: list[dict], tz_desc: list[dict], cumulative: set[str], meta: dict[str, str]) -> Path:
+             ecgs: list[dict], tz_desc: list[dict], cumulative: set[str], meta: dict[str, str],
+             analysis: dict[str, list] | None = None, analysis_info: dict[str, tuple[str, str]] | None = None,
+             annotations: list[dict] | None = None, reports: list[dict] | None = None) -> Path:
     tmp = path.with_suffix(".db.tmp")
     if tmp.exists():
         tmp.unlink()
@@ -117,6 +124,32 @@ def write_db(path: Path, *, store: Store, tl: Timeline, rank: dict[int, int], da
                 "FROM daily GROUP BY 1")
     cur.execute("CREATE VIEW weekly AS SELECT date(date, '-' || (weekday - 1) || ' days') AS week_start, "
                 f"COUNT(*) AS days, {avg_cols} FROM daily GROUP BY 1")
+
+    # ---- analysis: each value uses only that day and the days before it -----------------------
+    a_keys = list(analysis or {})
+    a_cols = [snake(k) for k in a_keys]
+    cur.executemany("INSERT INTO metrics VALUES (?, ?, ?)",
+                    [(c, *(analysis_info or {}).get(k, (k, ""))) for k, c in zip(a_keys, a_cols)])
+    cur.execute("CREATE TABLE analysis (date TEXT PRIMARY KEY" + "".join(f', "{c}" REAL' for c in a_cols) + ")")
+    cur.executemany(f"INSERT INTO analysis VALUES ({', '.join('?' * (1 + len(a_cols)))})",
+                    [(d, *[analysis[k][i] for k in a_keys]) for i, d in enumerate(days)] if a_keys else [])
+
+    # ---- weekly reports: the seven days ending on end_date -----------------------------------
+    cur.execute("CREATE TABLE reports (end_date TEXT PRIMARY KEY, start_date TEXT, headline TEXT, "
+                "sleep_score INTEGER, activity_score INTEGER, recovery TEXT, steady_days INTEGER, "
+                "judged_days INTEGER, training_load TEXT, load_ratio REAL, suggestions TEXT, long_term TEXT)")
+    cur.executemany("INSERT INTO reports VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
+        (days[r["end"]], days[r["start"]], r["headline"], r["sleep"]["score"], r["activity"]["score"],
+         r["recovery"]["label"], r["recovery"]["steady"], r["recovery"]["days"], r["load"]["label"],
+         r["load"]["ratio"], "；".join(t["title"] for t in r["tips"]) or None,
+         "；".join(x["name"] for x in r.get("long", []) if x["state"] == "note") or None)
+        for r in reports or []])
+
+    # ---- the wearer's own notes on particular days -------------------------------------------
+    cur.execute("CREATE TABLE annotations (date TEXT, tag TEXT, note TEXT)")
+    cur.executemany("INSERT INTO annotations VALUES (?, ?, ?)",
+                    [(days[e["d"]], tag, e["note"] or None)
+                     for e in annotations or [] for tag in (e["tags"] or [None])])
 
     # ---- raw samples -----------------------------------------------------------------------
     cur.execute("CREATE TABLE sources (id INTEGER PRIMARY KEY, name TEXT, priority INTEGER)")
@@ -167,13 +200,14 @@ def write_db(path: Path, *, store: Store, tl: Timeline, rank: dict[int, int], da
     cur.execute("CREATE TABLE workouts (date TEXT, start_time TEXT, type TEXT, type_key TEXT, minutes REAL, "
                 "active_kcal REAL, distance_km REAL, hr_avg REAL, hr_max REAL, hr_min REAL, mets REAL, effort REAL, "
                 "indoor INTEGER, temp_c REAL, elevation_m REAL, zone1_min REAL, zone2_min REAL, zone3_min REAL, "
-                "zone4_min REAL, zone5_min REAL, source TEXT, timezone TEXT)")
+                "zone4_min REAL, zone5_min REAL, source TEXT, timezone TEXT, load REAL, load_estimated INTEGER)")
     for w in workouts:
         z = (w["zones"] + [None] * 5)[:5] if len(w["zones"]) == 5 else [None] * 5
-        cur.execute("INSERT INTO workouts VALUES (" + ", ".join("?" * 22) + ")",
+        estimated = w.get("loadEst")
+        cur.execute("INSERT INTO workouts VALUES (" + ", ".join("?" * 24) + ")",
                     (days[w["d"]], w["time"], w["type"], w["key"], w["min"], w["kcal"], w["dist"], w["hrAvg"],
                      w["hrMax"], w["hrMin"], w["mets"], w["effort"], int(w["indoor"]), w["tempC"], w["elev"],
-                     *z, w["src"], w["tz"]))
+                     *z, w["src"], w["tz"], w.get("load"), None if estimated is None else int(estimated)))
 
     # ---- Apple's own daily summary -----------------------------------------------------------
     cur.execute("CREATE TABLE activity_summary (date TEXT PRIMARY KEY, active_kcal REAL, move_goal REAL, "

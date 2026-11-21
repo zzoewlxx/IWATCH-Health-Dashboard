@@ -16,10 +16,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from hk import tz as tzmod                                           # noqa: E402
+from hk.analysis import build_analysis, series_info                   # noqa: E402
+from hk.annotations import read_annotations                           # noqa: E402
+from hk.backtest import annotation_check, sensitivity                 # noqa: E402
 from hk.daily import (daily_stat, daily_sum, dominant_source, heart_rate_daily,  # noqa: E402
                       heart_rate_minutes, hourly_sum, resolve_overlaps, source_rank, source_runs)
 from hk.extras import build_ecgs, build_workouts                      # noqa: E402
 from hk.parse import export_offset, parse_export, parse_ts            # noqa: E402
+from hk.reference import load_reference, params_by_id                 # noqa: E402
+from hk.report import build_reports                                   # noqa: E402
 from hk.sleep import DAY_SHIFT, build_nights                          # noqa: E402
 from hk.source import ExportSource, find_exports                      # noqa: E402
 from hk.sqlite_out import write_db                                    # noqa: E402
@@ -69,10 +74,10 @@ PERCENT_TYPES = ("OxygenSaturation", "BodyFatPercentage", "WalkingDoubleSupportP
 SLEEP_DECIMALS = {"sleepTotal": 2, "sleepDeep": 2, "sleepCore": 2, "sleepRem": 2, "sleepUnspec": 2,
                   "sleepAwake": 0, "sleepInBed": 2, "sleepNap": 2, "bedtime": 0, "waketime": 0,
                   "sleepEff": 1, "wakeCount": 0, "sleepHr": 1, "sleepHrLow": 1, "sleepHrv": 1,
-                  "sleepSpo2": 1, "deepPct": 1, "remPct": 1, "corePct": 1}
+                  "sleepSpo2": 1, "deepPct": 1, "remPct": 1, "corePct": 1, "sleepCut": 0}
 # All-day totals that are incomplete on the day the export was made.
 PARTIAL_KEYS = ("steps", "distance", "cycling", "activeKcal", "basalKcal", "totalKcal", "flights",
-                "exerciseMin", "standHours", "daylight", "water", "hrMin", "hrMax", "hrAvg")
+                "exerciseMin", "standHours", "daylight", "water", "hrMin", "hrMax", "hrAvg", "wear")
 
 
 def say(msg: str) -> None:
@@ -94,6 +99,17 @@ def load_config() -> dict:
     except (OSError, ValueError) as exc:
         say(f"  ! config.json 读取失败（{exc}），使用默认设置")
         return {}
+
+
+def sleep_need_setting(cfg: dict, default: float) -> float:
+    """Hours of sleep the wearer needs per night: config.json, or the table's default."""
+    value = cfg.get("sleep_need_hours")
+    if value is None:
+        return float(default)
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and 4 <= value <= 12:
+        return float(value)
+    say(f"  ! config.json 的 sleep_need_hours 应是 4 到 12 之间的数字（现在是 {value!r}），按 {default:g} 小时计算")
+    return float(default)
 
 
 def pick_export(data_dir: Path, explicit: str | None) -> ExportSource:
@@ -248,16 +264,21 @@ def main() -> None:
     hr = q.get("HeartRate", [])
     lo, hi, avg, coverage, hourly = heart_rate_daily(hr, tl, day0, ndays)
     daily["hrMin"], daily["hrMax"], daily["hrAvg"] = rnd(lo, 0), rnd(hi, 0), rnd(avg, 1)
+    # how much of the day has any heart-rate reading: a stand-in for "was the watch on?"
+    daily["wear"] = rnd([None if c is None else 100 * c for c in coverage], 0)
     hr_era = source_runs(dominant_source(hr, tl, day0, ndays), store.sources, days)
-    for k in ("hrMin", "hrMax", "hrAvg"):
+    for k in ("hrMin", "hrMax", "hrAvg", "wear"):
         eras[k] = hr_era
     hr_hourly = [None if h is None else [None if v is None else round(v) for v in h] for h in hourly]
     intraday = {"hr": heart_rate_minutes(hr, tl, day0, ndays),
                 "steps": hourly_sum(resolved["steps"], tl, day0, ndays)}
 
     say("睡眠…")
+    reference = load_reference()
+    ref_params = params_by_id(reference)
     nights = build_nights(cat.get("SleepAnalysis", []), tl, rank, day0, ndays, hr,
-                          q.get("HeartRateVariabilitySDNN", []), q.get("OxygenSaturation", []))
+                          q.get("HeartRateVariabilitySDNN", []), q.get("OxygenSaturation", []),
+                          cut_window=ref_params["sleep_duration"]["cut_window_min"] * 60)
     for k, vals in nights["daily"].items():
         daily[k] = rnd(vals, SLEEP_DECIMALS[k])
     sleep_era = source_runs(nights["src"], store.sources, days, min_run=3)
@@ -274,6 +295,22 @@ def main() -> None:
         if k in daily:
             daily[k][-1] = None
     hr_hourly[-1] = None
+
+    # --- analysis: personal baselines, sleep regularity, training load ------------------
+    say("分析…")
+    sleep_need = sleep_need_setting(cfg, ref_params["sleep_debt"]["need_hours"])
+    analysis = build_analysis(days=days, daily=daily, sleep_kind=nights["kind"],
+                              sleep_segments=nights["segments"], workouts=workouts,
+                              params=ref_params, sleep_need=sleep_need)
+    for w, (load, estimated) in zip(workouts, analysis.pop("workoutLoad")):
+        w["load"], w["loadEst"] = load, estimated
+    reports = build_reports(days=days, daily=daily, analysis=analysis["daily"], workouts=workouts,
+                            params=ref_params, scores=reference["scores"], partial_day=partial, ecgs=ecgs,
+                            names={ind["id"]: ind["name"] for ind in reference["indicators"]})
+    annotations, annotation_warnings = read_annotations(ROOT / "标注.csv", day_index)
+    backtest = sensitivity(days=days, daily=daily, analysis=analysis["daily"], workouts=workouts,
+                           params=ref_params, scores=reference["scores"], sleep_need=sleep_need)
+    backtest["annotations"] = annotation_check(annotations, analysis["daily"], ref_params)
 
     # --- checks -------------------------------------------------------------------------
     checks: dict = {}
@@ -331,7 +368,8 @@ def main() -> None:
             "eras": {k: v for k, v in eras.items() if v},
             "checks": checks,
             "inventory": inventory,
-            "warnings": tzmod.warnings + [f"{t} 出现多种单位：{u}" for t, u in sorted(store.unknown_units, key=str)],
+            "warnings": tzmod.warnings + [f"{t} 出现多种单位：{u}" for t, u in sorted(store.unknown_units, key=str)]
+                        + annotation_warnings,
         },
         "days": days,
         "daily": daily,
@@ -340,6 +378,11 @@ def main() -> None:
         "hrHourly": hr_hourly,
         "workouts": workouts,
         "ecg": ecgs,
+        "analysis": analysis,
+        "reports": reports,
+        "backtest": backtest,
+        "annotations": annotations,
+        "reference": reference,
     }
     out_dir = ROOT / "dashboard"
     out_dir.mkdir(exist_ok=True)
@@ -358,6 +401,8 @@ def main() -> None:
         db_path = write_db(
             ROOT / "health.db", store=store, tl=tl, rank=rank, days=days, daily=daily,
             sleep_kind=nights["kind"], sleep_segments=nights["segments"], workouts=workouts, ecgs=ecgs,
+            analysis=analysis["daily"], analysis_info=series_info(ref_params, sleep_need), annotations=annotations,
+            reports=reports,
             tz_desc=tz_desc, cumulative={t for t, _ in SUMS.values()} | {"AppleStandTime"},
             meta={"export_date": store.export_date[:16], "generated_at": data["meta"]["generatedAt"],
                   "first_day": days[0], "last_day": days[-1], "partial_day": partial, "export_file": export_rel})
@@ -371,6 +416,10 @@ def main() -> None:
     if "steps" in checks:
         c = checks["steps"]
         say(f"  步数：直接相加 {c['rawTotal']:,} 步，去重后 {c['dedupTotal']:,} 步（去掉重复计数 {c['removedPct']}%）")
+    say(f"  分析：{len(analysis['daily'])} 项逐日指标，睡眠需求按每晚 {sleep_need:g} 小时"
+        + (f"；{len(annotations)} 天有标注" if annotations else ""))
+    if reports:
+        say(f"  周报：{len(reports)} 期。最近 7 天：{reports[-1]['headline']}")
     for w in data["meta"]["warnings"]:
         say(f"  ! {w}")
     say(f"  看板数据：{out}（{out.stat().st_size / 1024:.0f} KB）、{intra.name}（{intra.stat().st_size / 1024:.0f} KB）")
