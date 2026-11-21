@@ -195,6 +195,13 @@
     return tile;
   }
   const tiles = (ctx, list) => el('div', { class: 'tiles' }, list.map((o) => (o.nodeType ? o : kpi(o, ctx))));
+  Object.assign(ui, {
+    kpi, plainTile, tiles, mountChart,
+    /** re-render the current tab where it is (used by pages with their own controls) */
+    refresh: () => renderTab(),
+    setPreset(p) { applyPreset(p, true); store.save(); renderTab(); },
+    setRange(a, b) { state.a = Math.min(a, b); state.b = Math.max(a, b); state.preset = 'custom'; renderTab(); },
+  });
 
   const K = {
     rhr: { key: 'rhr', label: '静息心率', unit: 'bpm', dec: 1, better: 'down' },
@@ -421,12 +428,24 @@
       tile('心率范围', v('hrMin') == null ? null : v('hrMin') + ' – ' + v('hrMax'), 'bpm', v('hrAvg') != null ? '全天平均 ' + num(v('hrAvg')) : ''),
     ];
     if (v('weight') != null) tl.push(tile('体重', num(v('weight'), 1), 'kg', v('bodyFat') != null ? '体脂 ' + num(v('bodyFat'), 1) + '%' : ''));
+    const ls = HD.dayListenStats ? HD.dayListenStats(d) : null;
+    const listened = !!(ls && ls.minutes);
+    if (listened) {
+      tl.push(tile('耳机', hm(ls.minutes / 60), '', [ls.db != null ? '平均 ' + num(ls.db, 1) + ' 分贝' : '', ls.sessions ? ls.sessions + ' 次' : '']
+        .filter(Boolean).join(' · ')));
+    }
     const stageLegend = [['深睡', T.stage.deep], ['核心', T.stage.core], ['快速眼动', T.stage.rem], ['清醒', T.stage.awake], ['训练', T.ink2]]
+      .concat(listened ? [['耳机', T.s[2]]] : [])
       .map(([name, color]) => ({ name, color }));
     const cards = [
-      chartCard('全天心率', '每分钟的平均心率（当地时间）。下方两条色带是睡眠分期和训练时段', HD.dayHeart(d, T), 340, 12, stageLegend, '这一天没有心率数据'),
-      chartCard('每小时步数', null, HD.daySteps(d, T), 200, 6, null, '这一天没有步数数据'),
+      chartCard('全天心率', '每分钟的平均心率（当地时间）。下方的色带是睡眠分期、训练' + (listened ? '和耳机收听' : '时段'), HD.dayHeart(d, T),
+        listened ? 360 : 340, 12, stageLegend, '这一天没有心率数据'),
     ];
+    if (listened) {
+      cards.push(chartCard('当天耳机音量', `每一段是一条音量记录（当地时间）· ${ls.devices.join('、') || '耳机'} · 合计 ${hm(ls.minutes / 60)}`,
+        HD.dayVolume(d, T), 190, 12, null, '这一天没有用耳机'));
+    }
+    cards.push(chartCard('每小时步数', null, HD.daySteps(d, T), 200, 6, null, '这一天没有步数数据'));
     const sb = sleepBar(d, T);
     cards.push(el('section', { class: 'card' }, el('div', { class: 'card-head' }, el('div', null, el('h3', { text: '昨夜睡眠构成' }), el('p', { class: 'desc', text: '记在醒来这一天' }))),
       sb || el('div', { class: 'empty', text: '这一天没有睡眠分期数据' })));
@@ -581,6 +600,7 @@
         ];
       },
     },
+    { id: 'hearing', name: '耳机', noFilters: true, render: (ctx) => HD.hearingTab(ctx, ui) },
     { id: 'insights', name: '洞察', render: insightsTab },
     { id: 'day', name: '单日', noFilters: true, render: dayTab },
     {
@@ -604,10 +624,11 @@
           ]),
           section('环境与习惯'),
           grid(ctx, [
-            { title: '耳机音量', desc: '按时长加权的平均声压级', span: 4, build: trend({ key: 'headphone', name: '耳机音量', unit: '分贝', dec: 1 }) },
-            { title: '日照时间', span: 4, build: trend({ key: 'daylight', name: '日照', unit: '分', form: 'bar' }) },
-            { title: '饮水量', desc: '仅在有记录的日子', span: 4, build: trend({ key: 'water', name: '饮水', unit: '毫升', form: 'bar', roll: 0 }) },
+            { title: '日照时间', build: trend({ key: 'daylight', name: '日照', unit: '分', form: 'bar' }) },
+            { title: '饮水量', desc: '仅在有记录的日子', build: trend({ key: 'water', name: '饮水', unit: '毫升', form: 'bar', roll: 0 }) },
           ]),
+          el('p', { class: 'desc', style: 'margin-top:14px' }, '耳机音量、收听习惯和听力测试在 ',
+            el('button', { class: 'link', type: 'button', text: '耳机', onclick: () => ui.goto('hearing') }), ' 页。'),
         ];
       },
     },
@@ -709,6 +730,7 @@
         el('li', null, el('b', { text: '换设备：' }), '图上的竖线标出某项指标的主要数据来源发生变化的日期。不同设备的算法不同（尤其是静息心率、睡眠分期），跨竖线两侧的数值不宜直接比较。'),
         el('li', null, el('b', { text: '个人基线：' }), '每一天的基线范围是此前 28 天（至少 10 天有数据）的均值 ± 1 个标准差，不包含当天，所以每个数值都是和你自己的过去比。「洞察」页用所选范围最后 7 天的均值，对比再往前的 28 天。'),
         el('li', null, el('b', { text: '关联分析：' }), '皮尔逊相关系数，每个点是一天；「当晚」「次日」表示把后一天的数值对到前一天。有效数据少于 20 天不计算。相关不等于因果。'),
+        el('li', null, el('b', { text: '耳机：' }), 'iPhone 和 iPad 用耳机播放媒体时记录耳机里的音量（电话不计入），每条记录是一段时间和它的平均分贝。收听时长把重叠的记录只算一次；平均音量按时长做能量平均；声音剂量按 WHO 与国际电信联盟的安全收听标准，80 分贝听 40 小时为 100%，每高 3 分贝时间减半，取往前 7 天的合计。中间停顿不超过 5 分钟、用同一副耳机的记录算作一次收听。耳机型号来自记录里的设备信息，其中的蓝牙地址不会保存。'),
         el('li', null, el('b', { text: '单日详情：' }), '心率按分钟取平均，步数按小时汇总（已去重），都是当地时间。睡眠色带把跨午夜的一晚按日历日切开显示。')),
       el('div', { class: 'callout', text: '本看板只做数据整理与展示，参考范围为通用健康指引，不构成医疗诊断或建议。如有不适或数值持续异常，请咨询医生。' }));
 
@@ -732,6 +754,7 @@
     live = [];
     main.textContent = '';
     const tab = TABS.find((t) => t.id === state.tab) || TABS[0];
+    document.body.dataset.tab = tab.id;                // lets a page restyle the whole screen (the headphone page does)
     const ctx = context();
     for (const node of tab.render(ctx)) main.append(node);
     document.getElementById('filters').style.display = tab.noFilters ? 'none' : '';

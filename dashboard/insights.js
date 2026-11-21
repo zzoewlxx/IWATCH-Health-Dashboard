@@ -289,10 +289,14 @@
       pts.push([flat[k], flat[k + 1]]);
     }
     const sleep = daySleep(d), works = dayWorkouts(d);
+    const listen = HD.dayListening ? HD.dayListening(d) : [];
     const stageColor = [T.stage.deep, T.stage.core, T.stage.rem, T.n1, T.stage.awake, T.n2];
     const lanes = [];
     for (const [a, b, c] of sleep) lanes.push([0, a, b, stageColor[c]]);
     for (const x of works) lanes.push([1, x.a, x.b, T.ink2]);
+    if (listen.length) for (const [a, b] of HD.dayListeningLane(d)) lanes.push([2, a, b, T.s[2]]);
+    const laneNames = listen.length ? ['睡眠', '训练', '耳机'] : ['睡眠', '训练'];
+    const laneH = 20 * laneNames.length;
     const xCommon = {
       type: 'value', min: 0, max: 1440, interval: 120,
       axisLine: { lineStyle: { color: T.axis } }, axisTick: { show: false }, splitLine: { show: false },
@@ -300,12 +304,13 @@
     const at = (m) => {
       const st = sleep.find((s) => m >= s[0] && m < s[1]);
       const wk = works.find((x) => m >= x.a && m <= x.b);
-      return { stage: st ? STAGE_NAMES[st[2]] : null, workout: wk ? wk.w.type : null };
+      const hp = listen.find((s) => m >= s[0] && m < s[1]);
+      return { stage: st ? STAGE_NAMES[st[2]] : null, workout: wk ? wk.w.type : null, listen: hp ? num(hp[2], 1) + ' 分贝' : null };
     };
     const rest = D.rhr[d];
     return {
       animation: false, textStyle: { fontFamily: HD.FONT },
-      grid: [{ left: 46, right: 44, top: 14, bottom: 96 }, { left: 46, right: 44, height: 40, bottom: 34 }],
+      grid: [{ left: 46, right: 44, top: 14, bottom: 56 + laneH }, { left: 46, right: 44, height: laneH, bottom: 34 }],
       xAxis: [
         Object.assign({ gridIndex: 0, axisLabel: { show: false } }, xCommon),
         Object.assign({ gridIndex: 1, axisLabel: { color: T.muted, fontSize: 11, formatter: (v) => clock(v) } }, xCommon),
@@ -313,7 +318,7 @@
       yAxis: [
         Object.assign(yAxis({ T }, {}), { gridIndex: 0 }),
         {
-          gridIndex: 1, type: 'category', data: ['睡眠', '训练'], inverse: true,
+          gridIndex: 1, type: 'category', data: laneNames, inverse: true,
           axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: T.muted, fontSize: 11 },
           splitLine: { show: false },
         },
@@ -331,6 +336,7 @@
             { name: '心率', value: p.value[1] + ' bpm', color: T.s[0] },
             ctxAt.stage && { name: '睡眠', value: ctxAt.stage },
             ctxAt.workout && { name: '训练', value: ctxAt.workout },
+            ctxAt.listen && { name: '耳机', value: ctxAt.listen },
           ]);
         },
       },

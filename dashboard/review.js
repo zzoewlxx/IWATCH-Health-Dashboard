@@ -62,6 +62,21 @@
     const h30 = habit(a30, end), h60 = habit(a90, p1);
     const habits = ['平均睡眠时长', '平均入睡 / 醒来', '不足 6 小时的夜晚', '日均步数', '日均锻炼分钟', '训练记录']
       .map((name, i) => [name, h30[i], h60[i]]);
+    const listen = (a, b) => {                            // daily listening and its energy-average level
+      let m = 0, n = 0, e = 0;
+      for (let i = Math.max(0, a); i <= b; i++) {
+        const v = (D.listenMin || [])[i];
+        if (v == null) continue;
+        n++; m += v;
+        if (v > 0 && D.headphone[i] != null) e += v * Math.pow(10, D.headphone[i] / 10);
+      }
+      return n && m > 0 ? hm(m / n / 60) + ' · ' + num(10 * Math.log10(e / m), 1) + ' 分贝' : n ? '没有用耳机' : '–';
+    };
+    if (D.listenMin && D.listenMin.slice(a90, end + 1).some((v) => v)) habits.push(['日均耳机收听 · 平均音量', listen(a30, end), listen(a90, p1)]);
+    const tests = ((H.audio || {}).tests || []).slice().reverse();
+    const hearing = tests.slice(0, 3).map((t) => [t.date + ' ' + t.time,
+      t.pta[0] == null ? '–' : num(t.pta[0]) + ' dB HL（' + t.grade[0] + '）', t.pta[1] == null ? '–' : num(t.pta[1]) + ' dB HL（' + t.grade[1] + '）',
+      t.device || t.src]);
     if (A.sri28 && A.sri28[end] != null) habits.push(['作息规律指数（0–100，越高越规律）', num(A.sri28[end], 1), a30 > 0 && A.sri28[a30 - 1] != null ? num(A.sri28[a30 - 1], 1) : '–']);
 
     const flagged = [];
@@ -91,6 +106,8 @@
         flagged.length ? table(['日期（醒来那天）', '偏离的体征', '本人标注'], flagged, 3) : el('p', { class: 'desc', style: 'margin-top:10px', text: '近 90 天没有出现。' })),
       box('心电图记录', '近 180 天；分类来自 Apple 的心电图 App（单导联）',
         ecgs.length ? table(['时间', '分类', '心率'], ecgs, 2) : el('p', { class: 'desc', style: 'margin-top:10px', text: '近 180 天没有心电图记录。' })),
+      hearing.length ? box('听力测试', '最近 ' + hearing.length + ' 次（不限于近 90 天）；每只耳朵 500、1000、2000、4000 Hz 的平均听阈，自测结果，不是临床听力检查',
+        table(['时间', '左耳', '右耳', '设备'], hearing, 1)) : null,
       marks.length ? box('本人标注', '近 90 天', table(['日期', '标签', '备注'], marks, 3)) : null,
     )];
   };
@@ -100,6 +117,14 @@
     vitals: '夜间身体信号和平时不一样', hrv_low: '这几天把强度降一档', rhr_high: '静息心率比平时高', sleep_short: '睡得偏少，补一补',
     sleep_below: '睡眠时长略低于建议', load_up: '这周加量有点快', load_restart: '刚恢复训练，慢慢来', sleep_irregular: '把作息固定下来',
     steps_low: '每天多走一走', activity_low: '这周活动量偏少', training_gap: '有一阵没训练了', strength_low: '加一次力量训练',
+    headphone_loud: '这周耳机音量偏大',
+  };
+  /** the same suggestions as the weekly report's quips, without the numbers that change week to week */
+  const TIP_QUIP = {
+    vitals: '身体盘面异动，先别加仓', hrv_low: '恢复指数连跌，减仓观望', rhr_high: '静息心率高位站岗', sleep_short: '睡眠账户亏损，逢低补仓',
+    sleep_below: '重点关注睡眠 ETF', load_up: '训练杠杆加太猛，当心爆仓', load_restart: '重新建仓，先轻仓试水', sleep_irregular: '作息 K 线上蹿下跳',
+    steps_low: '步数跌破均线，每天定投', activity_low: '运动成交量萎缩，小额加仓', training_gap: '被沙发套牢，择机复牌', strength_low: '三倍做多力量训练',
+    headphone_loud: '耳机音量高位运行，逢高减仓',
   };
   function tally(list) {
     const rows = new Map();
@@ -152,8 +177,9 @@
     const rows = tally(list), quiet = list.filter((x) => !x.r.tips.length).length;
 
     const freq = box('每条建议出现过多少次', `共 ${list.length} 期周报（每个周日一期），其中 ${quiet} 期没有任何建议`,
-      rows.length ? table(['建议', '次数', '占比', '最近一次（截至）'],
-        rows.map((t) => [t.name, t.n + ' 期', num(100 * t.n / list.length) + '%', DAYS[t.last]])) : el('p', { class: 'desc', text: '还没有给出过建议。' }));
+      rows.length ? table(['建议', '说的是', '次数', '占比', '最近一次（截至）'],
+        rows.map((t) => [TIP_QUIP[t.id] || t.name, TIP_QUIP[t.id] ? t.name : '', t.n + ' 期', num(100 * t.n / list.length) + '%', DAYS[t.last]]), 2)
+        : el('p', { class: 'desc', text: '还没有给出过建议。' }));
     const grid = rows.length ? ui.card({
       title: '什么时候给出的', desc: '每一列是一期周报，有色的格子表示那一期给出了这条建议', span: 12, h: 46 + rows.length * 24,
       build: gridChart(list, rows),

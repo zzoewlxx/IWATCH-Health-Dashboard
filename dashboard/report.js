@@ -82,7 +82,8 @@
     return el('details', { class: 'tip' },
       el('summary', null,
         el('span', { class: 'lvl l' + t.level }, el('i', { text: t.level === 3 ? '●' : '○' }), LEVEL[t.level]),
-        el('b', { text: t.title })),
+        // the quip is the line people remember; the plain advice sits right next to it
+        el('b', { text: t.quip || t.title }), t.quip ? el('span', { class: 'plain', text: t.title }) : null),
       el('div', { class: 'tip-body' },
         el('p', { text: t.text }),
         basis.length ? el('div', { class: 'basis' }, el('div', { class: 'lbl', text: '依据' }),
@@ -103,6 +104,8 @@
   // ------------------------------------------------------------------ the seven days
   function dayTable(r, ui) {
     const P = (INDICATOR.get('sleep_duration') || {}).params || {};
+    let hp = false;                                       // a headphone column only for weeks with listening
+    for (let d = r.start; d <= r.end; d++) if (D.listenMin && D.listenMin[d]) hp = true;
     const rows = [];
     for (let d = r.end; d >= r.start; d--) {
       const ws = W.filter((w) => w.d === d);
@@ -119,13 +122,14 @@
         el('td', { text: D.bedtime[d] == null ? '–' : clock(D.bedtime[d]) + ' – ' + clock(D.waketime[d]) }),
         el('td', { text: D.steps[d] == null ? '–' : num(D.steps[d]) }),
         el('td', { text: D.exerciseMin[d] == null ? '–' : num(D.exerciseMin[d]) }),
+        hp ? el('td', { text: D.listenMin[d] ? mins(D.listenMin[d]) : '–' }) : null,
         el('td', { class: 'l', text: ws.length ? ws.map((w) => w.type + ' ' + mins(w.min)).join('、') : '–' }),
         el('td', { class: 'l' + (off ? ' mark' : ''), text: off || (out == null ? '–' : '和平时一样') }),
         el('td', { class: 'l' }, note ? [note.tags.map((t) => el('span', { class: 'pill', text: t })), note.note ? ' ' + note.note : ''] : '')));
     }
     return el('div', { class: 'tablewrap', style: 'border-top:0;margin-top:6px;max-height:none' },
       el('table', null,
-        el('thead', null, el('tr', null, ['日期', '睡眠', '入睡 – 醒来', '步数', '锻炼分钟'].map((c) => el('th', { text: c })),
+        el('thead', null, el('tr', null, ['日期', '睡眠', '入睡 – 醒来', '步数', '锻炼分钟'].concat(hp ? ['耳机'] : []).map((c) => el('th', { text: c })),
           ['训练', '夜间体征', '你的标注'].map((c) => el('th', { class: 'l', text: c })))),
         el('tbody', null, rows)));
   }
@@ -278,7 +282,7 @@
         el('td', { text: x.activity.score == null ? '–' : String(x.activity.score) }),
         el('td', { class: 'l', text: x.recovery.days ? `${x.recovery.label} ${x.recovery.steady}/${x.recovery.days}` : '–' }),
         el('td', { class: 'l', text: x.load.label }),
-        el('td', { class: 'l', text: x.tips.map((t) => t.title).join('；') || '没有需要调整的' })));
+        el('td', { class: 'l', text: x.tips.map((t) => t.quip || t.title).join('；') || '没有需要调整的' })));
     }
     return el('div', { class: 'tablewrap', style: 'border-top:0;margin-top:6px' },
       el('table', null,

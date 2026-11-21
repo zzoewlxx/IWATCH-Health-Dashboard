@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import calendar
+import re
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from typing import BinaryIO
@@ -21,8 +22,28 @@ QUANTITY_TYPES = {
     "WalkingSpeed", "WalkingStepLength", "WalkingDoubleSupportPercentage",
     "WalkingAsymmetryPercentage", "AppleWalkingSteadiness", "SixMinuteWalkTestDistance",
     "StairAscentSpeed", "StairDescentSpeed", "HeadphoneAudioExposure",
+    "EnvironmentalAudioExposure", "EnvironmentalSoundReduction",
 }
 CATEGORY_TYPES = {"SleepAnalysis", "AppleStandHour"}
+# Loud-sound notifications: the 7-day headphone limit, and the Noise app on the watch.
+AUDIO_EVENTS = {"HeadphoneAudioExposureEvent": "headphone", "EnvironmentalAudioExposureEvent": "environment",
+                "AudioExposureEvent": "environment"}
+AUDIOGRAM = "Audiogram"                           # inventory name of hearing-test results
+
+_DEVICE_FIELD = re.compile(r"(?:^|[<,])\s*(name|manufacturer|model|firmware):([^,>]*)")
+_LEAD_NUMBER = re.compile(r"\s*(-?\d+(?:\.\d+)?)")
+
+
+def device_fields(raw: str | None) -> dict[str, str]:
+    """The readable parts of a record's ``device`` attribute.
+
+    '<<HKDevice: 0x7421>, name:AirPods Pro, manufacturer:Apple Inc., model:0x2024, localIdentifier:…>'
+    -> {'name': 'AirPods Pro', 'manufacturer': 'Apple Inc.', 'model': '0x2024'}. The local identifier
+    (a Bluetooth address) is deliberately not kept.
+    """
+    if not raw:
+        return {}
+    return {k: v.strip() for k, v in _DEVICE_FIELD.findall(raw) if v.strip()}
 
 # (type, unit as exported) -> multiplier into the unit the dashboard assumes.
 UNIT_FACTORS = {
@@ -82,6 +103,14 @@ class Store:
         self.tz_hints: list[tuple[int, str]] = []       # explicit HKTimeZone metadata
         self.inventory: dict[str, dict] = {}            # every record type seen
         self.unknown_units: set[tuple[str, str]] = set()
+        # headphone audio levels with the headphones they were measured on:
+        # [(start, end, dB, src_id, device_id)]
+        self.headphones: list[tuple[int, int, float, int, int]] = []
+        self.audio_devices: list[dict] = []             # [{name, manufacturer, model}]
+        self._dev_index: dict[tuple, int] = {}
+        self._dev_raw: dict[str, int] = {}
+        self.audiograms: list[dict] = []                # hearing-test results
+        self.audio_events: list[dict] = []              # loud-sound notifications
 
     def src(self, name: str | None) -> int:
         name = (name or "?").replace("\xa0", " ")
@@ -90,6 +119,32 @@ class Store:
             i = self._src_index[name] = len(self.sources)
             self.sources.append(name)
         return i
+
+    def device(self, raw: str | None) -> int:
+        """Index of the headphones in a record's ``device`` attribute (same name and model = same pair)."""
+        key_raw = raw or ""
+        i = self._dev_raw.get(key_raw)
+        if i is None:
+            f = device_fields(raw)
+            key = (f.get("name", ""), f.get("manufacturer", ""), f.get("model", ""))
+            i = self._dev_index.get(key)
+            if i is None:
+                i = self._dev_index[key] = len(self.audio_devices)
+                self.audio_devices.append({"name": key[0], "manufacturer": key[1], "model": key[2]})
+            self._dev_raw[key_raw] = i
+        return i
+
+    def count(self, full: str, start: int, src: int, unit: str | None) -> None:
+        """Add one element to the inventory of record types."""
+        inv = self.inventory.get(full)
+        if inv is None:
+            inv = self.inventory[full] = {"n": 0, "first": start, "last": start, "sources": set(), "unit": unit}
+        inv["n"] += 1
+        if start < inv["first"]:
+            inv["first"] = start
+        if start > inv["last"]:
+            inv["last"] = start
+        inv["sources"].add(src)
 
 
 def _f(x: str | None) -> float | None:
@@ -138,9 +193,43 @@ def _workout(el: ET.Element, store: Store) -> dict:
     return w
 
 
+def _audiogram(el: ET.Element, store: Store) -> dict:
+    """One hearing test: thresholds in dB HL per frequency and ear (None where an ear was not tested)."""
+    a = el.attrib
+    dev = device_fields(a.get("device"))
+    points, meta = [], {}
+    for c in el:
+        if c.tag == "SensitivityPoint":
+            p = c.attrib
+            hz = _f(p.get("frequencyValue"))
+            if hz is not None:
+                points.append({"hz": hz, "left": _f(p.get("leftEarValue")), "right": _f(p.get("rightEarValue")),
+                               "leftMasked": p.get("leftEarMasked") == "YES",
+                               "rightMasked": p.get("rightEarMasked") == "YES"})
+        elif c.tag == "MetadataEntry":
+            meta[c.attrib.get("key")] = c.attrib.get("value")
+    points.sort(key=lambda p: p["hz"])
+    return {"start": parse_ts(a["startDate"]), "end": parse_ts(a["endDate"]), "src": store.src(a.get("sourceName")),
+            "device": dev.get("name") or dev.get("model") or "", "firmware": dev.get("firmware"),
+            "points": points, "meta": meta}
+
+
+def _audio_event(el: ET.Element, kind: str, start: int, end: int, src: int) -> dict:
+    """A loud-sound notification. The level, when the export carries one, is in its metadata."""
+    level = None
+    for c in el:
+        if c.tag == "MetadataEntry" and "Level" in (c.attrib.get("key") or ""):
+            m = _LEAD_NUMBER.match(c.attrib.get("value") or "")
+            if m:
+                level = float(m.group(1))
+                break
+    return {"kind": kind, "start": start, "end": end, "src": src,
+            "value": el.attrib.get("value", "").replace("HKCategoryValue", ""), "level": level}
+
+
 def parse_export(fp: BinaryIO, progress=None) -> Store:
     store = Store()
-    quantity, category, inventory = store.quantity, store.category, store.inventory
+    quantity, category = store.quantity, store.category
     depth = 0
     root = None
     n = 0
@@ -161,15 +250,7 @@ def parse_export(fp: BinaryIO, progress=None) -> Store:
             start = parse_ts(a["startDate"])
             end = parse_ts(a["endDate"])
             src = store.src(a.get("sourceName"))
-            inv = inventory.get(full)
-            if inv is None:
-                inv = inventory[full] = {"n": 0, "first": start, "last": start, "sources": set(), "unit": a.get("unit")}
-            inv["n"] += 1
-            if start < inv["first"]:
-                inv["first"] = start
-            if start > inv["last"]:
-                inv["last"] = start
-            inv["sources"].add(src)
+            store.count(full, start, src, a.get("unit"))
 
             if full.startswith(Q_PREFIX):
                 t = full[len(Q_PREFIX):]
@@ -188,6 +269,8 @@ def parse_export(fp: BinaryIO, progress=None) -> Store:
                         if k is not None:
                             v *= k
                         quantity[t].append((start, end, v, src))
+                        if t == "HeadphoneAudioExposure":
+                            store.headphones.append((start, end, v, src, store.device(a.get("device"))))
             elif full.startswith(C_PREFIX):
                 t = full[len(C_PREFIX):]
                 if t in CATEGORY_TYPES:
@@ -201,6 +284,12 @@ def parse_export(fp: BinaryIO, progress=None) -> Store:
                     val = a.get("value", "")
                     val = val.replace("HKCategoryValueSleepAnalysis", "").replace("HKCategoryValueAppleStandHour", "")
                     category[t].append((start, end, val, src, tz))
+                elif t in AUDIO_EVENTS:
+                    store.audio_events.append(_audio_event(el, AUDIO_EVENTS[t], start, end, src))
+        elif tag == "Audiogram":
+            test = _audiogram(el, store)
+            store.audiograms.append(test)
+            store.count(AUDIOGRAM, test["start"], test["src"], "dBHL")
         elif tag == "Workout":
             store.workouts.append(_workout(el, store))
         elif tag == "ActivitySummary":

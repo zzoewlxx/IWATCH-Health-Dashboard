@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from hk import tz as tzmod                                           # noqa: E402
 from hk.analysis import build_analysis, series_info                   # noqa: E402
 from hk.annotations import read_annotations                           # noqa: E402
+from hk.audio import build_audio                                      # noqa: E402
 from hk.backtest import annotation_check, sensitivity                 # noqa: E402
 from hk.daily import (daily_stat, daily_sum, dominant_source, heart_rate_daily,  # noqa: E402
                       heart_rate_minutes, hourly_sum, resolve_overlaps, source_rank, source_runs)
@@ -67,7 +68,8 @@ STATS = {
     "sixMin": ("SixMinuteWalkTestDistance", "last", 0, 0, False),
     "stairUp": ("StairAscentSpeed", "mean", 2, 0, False),
     "stairDown": ("StairDescentSpeed", "mean", 2, 0, False),
-    "headphone": ("HeadphoneAudioExposure", "dbmean", 1, 0, False),
+    "envNoise": ("EnvironmentalAudioExposure", "dbmean", 1, 0, False),
+    "envReduction": ("EnvironmentalSoundReduction", "mean", 1, 0, False),
 }
 PERCENT_TYPES = ("OxygenSaturation", "BodyFatPercentage", "WalkingDoubleSupportPercentage",
                  "WalkingAsymmetryPercentage", "AppleWalkingSteadiness")
@@ -77,7 +79,8 @@ SLEEP_DECIMALS = {"sleepTotal": 2, "sleepDeep": 2, "sleepCore": 2, "sleepRem": 2
                   "sleepSpo2": 1, "deepPct": 1, "remPct": 1, "corePct": 1, "sleepCut": 0}
 # All-day totals that are incomplete on the day the export was made.
 PARTIAL_KEYS = ("steps", "distance", "cycling", "activeKcal", "basalKcal", "totalKcal", "flights",
-                "exerciseMin", "standHours", "daylight", "water", "hrMin", "hrMax", "hrAvg", "wear")
+                "exerciseMin", "standHours", "daylight", "water", "hrMin", "hrMax", "hrAvg", "wear",
+                "listenMin", "hpDose", "hpDose7")
 
 
 def say(msg: str) -> None:
@@ -289,6 +292,11 @@ def main() -> None:
     workouts = build_workouts(store, tl, day0, ndays)
     ecgs = build_ecgs(src, tl, day0)
 
+    say("耳机与听力…")
+    audio = build_audio(store, tl, day0, ndays, ref_params)
+    daily.update(audio.pop("daily"))
+    intraday["hp"] = audio.pop("samples")
+
     # --- the export day is only half over: drop its running totals ---------------------
     partial = days[-1]
     for k in PARTIAL_KEYS:
@@ -378,6 +386,7 @@ def main() -> None:
         "hrHourly": hr_hourly,
         "workouts": workouts,
         "ecg": ecgs,
+        "audio": audio,
         "analysis": analysis,
         "reports": reports,
         "backtest": backtest,
@@ -400,7 +409,7 @@ def main() -> None:
         say("写入 SQLite 数据库…")
         db_path = write_db(
             ROOT / "health.db", store=store, tl=tl, rank=rank, days=days, daily=daily,
-            sleep_kind=nights["kind"], sleep_segments=nights["segments"], workouts=workouts, ecgs=ecgs,
+            sleep_kind=nights["kind"], sleep_segments=nights["segments"], workouts=workouts, ecgs=ecgs, audio=audio,
             analysis=analysis["daily"], analysis_info=series_info(ref_params, sleep_need), annotations=annotations,
             reports=reports,
             tz_desc=tz_desc, cumulative={t for t, _ in SUMS.values()} | {"AppleStandTime"},
@@ -418,6 +427,12 @@ def main() -> None:
         say(f"  步数：直接相加 {c['rawTotal']:,} 步，去重后 {c['dedupTotal']:,} 步（去掉重复计数 {c['removedPct']}%）")
     say(f"  分析：{len(analysis['daily'])} 项逐日指标，睡眠需求按每晚 {sleep_need:g} 小时"
         + (f"；{len(annotations)} 天有标注" if annotations else ""))
+    if audio["devices"]:
+        hours = sum(x["minutes"] for x in audio["devices"]) / 60
+        dose7 = next((v for v in reversed(daily["hpDose7"]) if v is not None), None)
+        say(f"  耳机：共 {hours:,.0f} 小时，{len(audio['devices'])} 副耳机，{len(audio['sessions']):,} 次收听"
+            + (f"；最近 7 天的声音剂量为 WHO 每周参考量的 {dose7:g}%" if dose7 is not None else "")
+            + (f"；听力测试 {len(audio['tests'])} 次" if audio["tests"] else ""))
     if reports:
         say(f"  周报：{len(reports)} 期。最近 7 天：{reports[-1]['headline']}")
     for w in data["meta"]["warnings"]:

@@ -24,7 +24,8 @@
     "sleep": "睡眠",
     "activity": "日常活动",
     "training": "训练",
-    "long": "长期变化"
+    "long": "长期变化",
+    "hearing": "耳机与听力"
   },
   "scores": {
     "about": "睡眠和日常活动各有一个 0 到 100 的分数，表示这 7 天对照指南完成了多少。恢复和训练负荷只能和你自己比，谈不上“完成度”，所以不打分，只给状态。",
@@ -888,6 +889,134 @@
           "cite": "Apple. Take an ECG with the ECG app on Apple Watch.",
           "url": "https://support.apple.com/en-us/120278",
           "finding": "分类结果包括窦性心律、心房颤动、心率过低或过高、不确定、记录质量不佳。得到心房颤动的结果而此前没有确诊过的人，应当咨询医生。心电图 App 不能检测心脏病发作。",
+          "checked": "official"
+        }
+      ]
+    },
+    {
+      "id": "headphone_dose",
+      "group": "hearing",
+      "name": "每周耳机声音剂量",
+      "range": "最近 7 天的声音剂量在 100% 以内，就在 WHO 建议的成人每周上限之内。100% 相当于 80 分贝听 40 小时；音量每高 3 分贝，能听的时间减半（85 分贝约 12.5 小时，90 分贝 4 小时）。",
+      "method": "iPhone 和 iPad 用耳机播放媒体时，会记录耳机里的音量：每条记录是一段时间和这段时间的平均分贝。每条记录的剂量 = 时长（小时）÷ 40 × 10^((分贝 − 80) ÷ 10) × 100%，把最近 7 天（含当天）的加起来。两条记录重叠的部分只算一次。平均音量按时长做能量平均：一小时 70 分贝加一小时 60 分贝，平均约 67 分贝，而不是 65。中间停顿不超过 5 分钟、用的是同一副耳机的记录，算作同一次收听。周报只在 7 天剂量达到 100% 时提一句。",
+      "params": {
+        "ref_db": 80,
+        "ref_hours": 40,
+        "window_days": 7,
+        "tip_percent": 100,
+        "session_gap_min": 5,
+        "level_bins": [
+          40,
+          45,
+          50,
+          55,
+          60,
+          65,
+          70,
+          75,
+          80,
+          85,
+          90
+        ]
+      },
+      "grade": "A",
+      "grade_note": "WHO 和国际电信联盟的联合标准（ITU-T H.870）给出的成人参考量，按等能量原则计算（每高 3 分贝，时间减半）。Apple 的耳机音量提醒用的是同一条线：7 天内超过 80 分贝累计 40 小时。证据等级 A 说的是这条线有正式标准可依，不是说低于它就一定没有影响、高于它就一定受损。",
+      "caveats": [
+        "AirPods 和 Beats 耳机的测量最准；其他耳机是 iPhone 按音量估算的，可能偏高或偏低。",
+        "电话不计入，只算媒体播放；也不包括环境噪音（地铁、演唱会、工地），环境声音要靠 Apple Watch 的「噪声」App 测量。",
+        "儿童和对噪音敏感的人，WHO 建议用更低的参考量：75 分贝听 40 小时，相当于这里的 32%。",
+        "WHO 还建议把音量设在最大音量的 60% 以下，并经常让耳朵休息；吵的地方开降噪，比调大音量更护耳。"
+      ],
+      "sources": [
+        {
+          "cite": "WHO. Safe listening devices and systems: a WHO-ITU standard, 2019.",
+          "url": "https://www.who.int/publications/i/item/9789241515276",
+          "finding": "WHO 与国际电信联盟的安全收听设备标准：成人模式为每周 80 分贝 40 小时，儿童模式为每周 75 分贝 40 小时；设备按“声音配额”（占参考量的百分比）告诉用户已经用了多少。",
+          "checked": "official"
+        },
+        {
+          "cite": "WHO. Deafness and hearing loss: Safe listening（问答）.",
+          "url": "https://www.who.int/news-room/questions-and-answers/item/deafness-and-hearing-loss-safe-listening",
+          "finding": "80 分贝可以安全地听每周 40 小时；85 分贝 12 小时 30 分，90 分贝 4 小时，95 分贝 1 小时 15 分，100 分贝 20 分钟。建议音量不超过设备最大音量的 60%，并经常让耳朵从大声中休息。",
+          "checked": "official"
+        },
+        {
+          "cite": "Apple. Headphone notifications on your iPhone, iPad, or Apple Watch.",
+          "url": "https://support.apple.com/108968",
+          "finding": "耳机音量提醒在过去 7 天内超过 80 分贝累计 40 小时时发出；7 天上限只计媒体音频，电话不计入。",
+          "checked": "official"
+        },
+        {
+          "cite": "Apple. Check your headphone audio levels on iPhone（iPhone 使用手册）.",
+          "url": "https://support.apple.com/guide/iphone/check-your-headphone-levels-iph0596a9152/ios",
+          "finding": "用 Apple 或 Beats 耳机时，耳机音量的测量最准确；通过其他耳机播放的音频，可以按 iPhone 的音量估算。",
+          "checked": "official"
+        }
+      ]
+    },
+    {
+      "id": "hearing_test",
+      "group": "hearing",
+      "name": "听力测试",
+      "range": "每只耳朵取 500、1000、2000、4000 Hz 四个频率听阈的平均值。25 dB HL 及以下为基本没有听力损失，26–40 轻度，41–60 中度，61–80 重度，81 及以上极重度（Apple 结果页用的传统 WHO 分级）。WHO 现行的分级更严：双耳都低于 20 dB HL 才算正常。",
+      "method": "读取健康 App 里的听力图（AirPods Pro 听力测试，或其他 App 写入的结果）。每只耳朵分别求四频平均、分别分级，四个频率缺一个就不算；分级用四舍五入到整数后的数值，和健康 App 显示的一致。有两次以上测试时，列出每只耳朵相对上一次的变化。",
+      "params": {
+        "pta_freqs": [
+          500,
+          1000,
+          2000,
+          4000
+        ],
+        "grades": [
+          [
+            25,
+            "基本没有听力损失"
+          ],
+          [
+            40,
+            "轻度听力损失"
+          ],
+          [
+            60,
+            "中度听力损失"
+          ],
+          [
+            80,
+            "重度听力损失"
+          ],
+          [
+            null,
+            "极重度听力损失"
+          ]
+        ],
+        "normal_below": 20,
+        "change_db": 10
+      },
+      "grade": "B",
+      "grade_note": "分级标准来自 WHO。AirPods Pro 听力测试的准确度来自 Apple 自己的临床验证：201 人，与听力师用标准设备做的纯音测听相比，四频平均的中位绝对差 1.81 dB，88.5% 的耳朵相差在 5 dB 以内、98.4% 在 10 dB 以内，分级一致率 86.4%。研究由厂商完成、样本量不大，所以定为 B。",
+      "caveats": [
+        "这是气导测试，分不清问题出在外耳、中耳（比如耵聍、感冒耳闷）还是内耳。",
+        "测试时环境吵、耳塞没戴好，结果会有偏差；Apple 的测试面向 18 岁以上的人。",
+        "单次结果只说明当时的情况，隔一段时间再测、对比，才看得出变化。同一只耳朵的四频平均比上次差了 10 dB 以上，超出了这个测试常见的误差，可以去医院的耳鼻喉科或听力门诊复查。",
+        "这不是诊断。觉得听不清、耳鸣或耳闷，直接去看医生，不用等测试结果。"
+      ],
+      "sources": [
+        {
+          "cite": "Apple. Using AirPods Pro 2 with iPhone and iPad to Help Protect, Assess, and Assist Hearing（白皮书）, 2024.",
+          "url": "https://images.apple.com/health/pdf/Hearing_Health_Features_on_AirPods_Pro_2_October_2024.pdf",
+          "finding": "AirPods Pro 2 听力测试是气导纯音测听，频率 250–8000 Hz，面向 18 岁以上。结果按四频平均（500、1000、2000、4000 Hz）给出，按传统 WHO 分级：≤25 dB HL 无损失、26–40 轻度、41–60 中度、61–80 重度、≥81 极重度。201 人的临床验证中，与标准纯音测听相比，四频平均的中位绝对差为 1.81 dB HL，88.5% 的耳朵在 ±5 dB 以内、98.4% 在 ±10 dB 以内，分级一致率 86.4%。",
+          "checked": "fulltext"
+        },
+        {
+          "cite": "Olusanya BO, Davis AC, Hoffman HJ. Hearing loss grades and the International classification of functioning, disability and health. Bulletin of the World Health Organization, 2019.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/31656340/",
+          "finding": "传统 WHO 分级按较好耳 500、1000、2000、4000 Hz 的平均听阈划分，正常上限 25 dB HL。修订版把正常上限降到 20 dB HL，并按 15 dB 一级细分：轻度 20–34.9、中度 35–49.9、中重度 50–64.9、重度 65–79.9、极重度 80–94.9、全聋 ≥95，另设单侧听力损失一类。",
+          "checked": "fulltext"
+        },
+        {
+          "cite": "WHO. Deafness and hearing loss（事实清单）.",
+          "url": "https://www.who.int/news-room/fact-sheets/detail/deafness-and-hearing-loss",
+          "finding": "双耳听阈都在 20 dB 或更好算听力正常；听力损失分为轻度、中度、中重度、重度和极重度。全球超过 10 亿年轻人因为不安全的收听习惯，面临可以避免的永久性听力损失风险。",
           "checked": "official"
         }
       ]

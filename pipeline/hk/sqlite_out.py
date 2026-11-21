@@ -9,6 +9,11 @@ Tables
   types / sources    lookup tables for ``samples``
   sleep_segments     the sleep-stage segments the dashboard uses, one row per segment
   workouts           one row per workout
+  headphone_devices  the headphones that headphone audio levels were measured on
+  headphone_sessions one row per listening session (pauses up to a few minutes stay inside one)
+  hearing_tests      one row per hearing test, with each ear's pure-tone average and grade
+  hearing_test_points  the audiogram behind each test: dB HL per frequency and ear
+  audio_events       loud-sound notifications (headphone 7-day limit, environmental noise)
   annotations        the wearer's own day tags (from 标注.csv), one row per tag
   activity_summary   Apple's own per-day ring totals, as exported
   timezones          where the wearer was (zone per date range, and how it was determined)
@@ -60,7 +65,13 @@ METRIC_INFO = {
     "fatMass": ("脂肪量", "kg"), "bmi": ("BMI", ""),
     "walkSpeed": ("步行速度", "公里/小时"), "stepLen": ("步长", "厘米"), "dblSupport": ("双脚支撑时间占比", "%"),
     "asym": ("步行不对称", "%"), "steadiness": ("步行稳定性", "%"), "sixMin": ("六分钟步行距离（估算）", "米"),
-    "stairUp": ("上楼速度", "米/秒"), "stairDown": ("下楼速度", "米/秒"), "headphone": ("耳机音量", "分贝"),
+    "stairUp": ("上楼速度", "米/秒"), "stairDown": ("下楼速度", "米/秒"),
+    "listenMin": ("耳机收听时长（重叠的记录只算一次）", "分钟"),
+    "headphone": ("耳机平均音量（按时长的能量平均）", "分贝"),
+    "hpDose": ("耳机声音剂量：占 WHO 每周参考量（80 分贝 × 40 小时）的比例", "%"),
+    "hpDose7": ("最近 7 天（含当天）的耳机声音剂量，占 WHO 每周参考量的比例", "%"),
+    "envNoise": ("环境噪音（Apple Watch，按时长的能量平均）", "分贝"),
+    "envReduction": ("AirPods 降低的环境声音（日均）", "分贝"),
 }
 STAGE_KEYS = ["deep", "core", "rem", "unspecified", "awake", "in_bed"]
 
@@ -86,7 +97,8 @@ def write_db(path: Path, *, store: Store, tl: Timeline, rank: dict[int, int], da
              daily: dict[str, list], sleep_kind: list, sleep_segments: list, workouts: list[dict],
              ecgs: list[dict], tz_desc: list[dict], cumulative: set[str], meta: dict[str, str],
              analysis: dict[str, list] | None = None, analysis_info: dict[str, tuple[str, str]] | None = None,
-             annotations: list[dict] | None = None, reports: list[dict] | None = None) -> Path:
+             annotations: list[dict] | None = None, reports: list[dict] | None = None,
+             audio: dict | None = None) -> Path:
     tmp = path.with_suffix(".db.tmp")
     if tmp.exists():
         tmp.unlink()
@@ -208,6 +220,36 @@ def write_db(path: Path, *, store: Store, tl: Timeline, rank: dict[int, int], da
                     (days[w["d"]], w["time"], w["type"], w["key"], w["min"], w["kcal"], w["dist"], w["hrAvg"],
                      w["hrMax"], w["hrMin"], w["mets"], w["effort"], int(w["indoor"]), w["tempC"], w["elev"],
                      *z, w["src"], w["tz"], w.get("load"), None if estimated is None else int(estimated)))
+
+    # ---- headphones and hearing ----------------------------------------------------------------
+    audio = audio or {}
+    devices = audio.get("devices", [])
+    cur.execute("CREATE TABLE headphone_devices (device TEXT, name TEXT, model TEXT, manufacturer TEXT, "
+                "minutes INTEGER, days INTEGER, first_date TEXT, last_date TEXT, avg_db REAL, played_from TEXT)")
+    cur.executemany("INSERT INTO headphone_devices VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
+        (x["label"], x["name"] or None, x["model"] or None, x["maker"] or None, x["minutes"], x["days"],
+         days[x["first"]], days[x["last"]], x["db"], "、".join(f"{s} {m} 分钟" for s, m in x["sources"]))
+        for x in devices])
+    cur.execute("CREATE TABLE headphone_sessions (date TEXT, start_time TEXT, end_time TEXT, span_min REAL, "
+                "listen_min REAL, avg_db REAL, device TEXT, played_from TEXT)")
+    srcs = audio.get("sessionSources", [])
+    cur.executemany("INSERT INTO headphone_sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [
+        (days[d], _clock(start), _clock(start + span), span, listen, db, devices[dev]["label"], srcs[src])
+        for d, start, span, listen, db, dev, src in audio.get("sessions", [])])
+    cur.execute("CREATE INDEX idx_hp_sessions_date ON headphone_sessions (date)")
+    cur.execute("CREATE TABLE hearing_tests (date TEXT, time TEXT, source TEXT, device TEXT, "
+                "left_pta REAL, right_pta REAL, left_grade TEXT, right_grade TEXT, left_change REAL, right_change REAL)")
+    cur.execute("CREATE TABLE hearing_test_points (date TEXT, time TEXT, frequency_hz REAL, left_dbhl REAL, right_dbhl REAL)")
+    for x in audio.get("tests", []):
+        change = x["change"] or [None, None]
+        cur.execute("INSERT INTO hearing_tests VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (x["date"], x["time"], x["src"], x["device"] or None, *x["pta"], *x["grade"], *change))
+        cur.executemany("INSERT INTO hearing_test_points VALUES (?, ?, ?, ?, ?)",
+                        [(x["date"], x["time"], hz, left, right) for hz, left, right in x["points"]])
+    cur.execute("CREATE TABLE audio_events (date TEXT, time TEXT, kind TEXT, level_db REAL)")
+    cur.executemany("INSERT INTO audio_events VALUES (?, ?, ?, ?)",
+                    [(x["date"], x["time"], {"headphone": "耳机 7 天音量提醒", "environment": "环境噪音提醒"}[x["kind"]],
+                      x["level"]) for x in audio.get("events", [])])
 
     # ---- Apple's own daily summary -----------------------------------------------------------
     cur.execute("CREATE TABLE activity_summary (date TEXT PRIMARY KEY, active_kcal REAL, move_goal REAL, "

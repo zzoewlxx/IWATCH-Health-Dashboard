@@ -24,7 +24,7 @@
   // ------------------------------------------------------------------ single-metric trend
   /**
    * spec: { key, name, unit, dec, form:'line'|'bar', roll, minN, zero, band:[lo,hi,label],
-   *         goalKey, fmt, axisFmt, eras, sparse, yMin, yMax }
+   *         goalKey, fmt, axisFmt, eras, sparse, yMin, yMax, right }
    * Daily view: every day as a quiet context mark + a 7-day mean as the emphasis line.
    * Weekly / monthly view: the bucket mean.
    */
@@ -113,7 +113,7 @@
     }
     if (spec.eras) first.markLine = eraLines(spec.key, ctx);
 
-    const option = Object.assign(baseOption(ctx), {
+    const option = Object.assign(baseOption(ctx, { right: spec.right }), {
       xAxis: xAxis(labels, ctx, bar),
       yAxis: yAxis(ctx, { zero: bar || spec.zero, fmt: spec.axisFmt, min: spec.yMin, max: spec.yMax, inverse: spec.inverse }),
       tooltip: tooltip(ctx, (i) => ttDom(bucketTitle(ctx.bk[i], ctx.gran), [
@@ -535,8 +535,10 @@
   };
 
   // ------------------------------------------------------------------ weekday pattern
+  /** spec: { key, name, unit, fmt, axisFmt } — fmt (optional) formats a value, unit included */
   HD.weekdayBars = (spec) => (ctx) => {
     const T = ctx.T, arr = D[spec.key];
+    const fmt = spec.fmt || ((v) => num(v) + ' ' + spec.unit);
     const s = new Array(7).fill(0), n = new Array(7).fill(0);
     for (let i = ctx.a; i <= ctx.b; i++) if (arr[i] != null) { s[DOW[i]] += arr[i]; n[DOW[i]]++; }
     if (!n.some(Boolean)) return { empty: true };
@@ -544,15 +546,16 @@
     const c2 = Object.assign({}, ctx, { a: 0, b: 0 });
     const option = Object.assign(baseOption(ctx, { right: 12, top: 26 }), {
       xAxis: Object.assign(xAxis(WEEKDAY, c2, true), { axisLabel: { color: T.muted, fontSize: 11 } }),
-      yAxis: yAxis(ctx, { zero: true }),
-      tooltip: tooltip(ctx, (i) => ttDom(WEEKDAY[i], [{ name: '平均' + spec.name, value: num(data[i]) + ' ' + spec.unit, color: T.s[0], box: true }], n[i] + ' 天')),
+      yAxis: yAxis(ctx, { zero: true, fmt: spec.axisFmt }),
+      tooltip: tooltip(ctx, (i) => ttDom(WEEKDAY[i], [{ name: '平均' + spec.name, value: data[i] == null ? null : fmt(data[i]), color: T.s[0], box: true }], n[i] + ' 天')),
       series: [{
         type: 'bar', data, barMaxWidth: 24, itemStyle: { color: T.s[0], borderRadius: [4, 4, 0, 0] },
-        label: { show: true, position: 'top', color: T.ink2, fontSize: 11, formatter: (p) => num(p.value) },
+        label: { show: true, position: 'top', color: T.ink2, fontSize: 11, formatter: (p) => (spec.fmt ? spec.fmt(p.value) : num(p.value)) },
+        labelLayout: { hideOverlap: true },                // narrow screens: drop colliding labels, the table keeps every value
         emphasis: { disabled: true },
       }],
     });
-    return { option, table: { cols: ['星期', '平均' + spec.name, '天数'], rows: WEEKDAY.map((w, k) => [w, num(data[k]), n[k]]) } };
+    return { option, table: { cols: ['星期', '平均' + spec.name, '天数'], rows: WEEKDAY.map((w, k) => [w, data[k] == null ? '–' : fmt(data[k]), n[k]]) } };
   };
 
   // ------------------------------------------------------------------ ECG strip
@@ -635,5 +638,5 @@
     return svg;
   };
 
-  Object.assign(HD, { tableOf, anyValue, round, TYPE_ORDER, meanOf, SEGS, STAGE_NAMES });
+  Object.assign(HD, { tableOf, anyValue, round, TYPE_ORDER, meanOf, SEGS, STAGE_NAMES, stackOption });
 })();

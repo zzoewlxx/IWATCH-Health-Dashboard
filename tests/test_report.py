@@ -304,7 +304,8 @@ class Wording(unittest.TestCase):
             w.A["vitalsOut"][j], w.A["zSleepHr"][j], w.A["zResp"][j] = 2, 3.0, 2.5
         r = w.last()
         self.assertGreaterEqual(len(r["tips"]), 7)
-        text = r["headline"] + "".join(t["title"] + t["text"] for t in r["tips"])
+        text = r["headline"] + "".join(t["title"] + t["quip"] + t["text"] for t in r["tips"])
+        self.assertTrue(all(t["quip"] and t["quip"] != t["title"] for t in r["tips"]))
         for word in ("警告", "危险", "异常", "严重", "必须", "立即", "！"):
             self.assertNotIn(word, text)
         self.assertEqual([t["level"] for t in r["tips"]], sorted((t["level"] for t in r["tips"]), reverse=True))
