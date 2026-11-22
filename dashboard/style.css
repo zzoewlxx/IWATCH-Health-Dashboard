@@ -662,3 +662,31 @@ body[data-tab="hearing"] .tab[aria-selected="true"] { color: var(--hk-hi); borde
   .wrap { padding: 0 16px; }
   .tile .v { font-size: 22px; }
 }
+
+/* ---- your own comparisons: a difference and its 95% interval around zero ---- */
+table.contrast td { vertical-align: middle; }
+table.contrast td.diff { line-height: 1.3; }
+table.contrast td.diff b { display: block; font-weight: 600; }
+table.contrast td.diff small { color: var(--muted); font-size: 11px; }
+.ci { position: relative; width: 96px; height: 14px; }
+.ci .zero { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--axis); }
+.ci .span { position: absolute; top: 6px; height: 2px; border-radius: 1px; background: var(--neutral-1); }
+.ci .dot { position: absolute; top: 3px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: var(--neutral-1); }
+.ci .span.clear, .ci .span.maybe { background: var(--series-1); }
+.ci .dot.clear, .ci .dot.maybe { background: var(--series-1); }
+.ci .span.maybe, .ci .dot.maybe { opacity: 0.6; }
+.verdict { font-size: 12.5px; color: var(--muted); }
+.verdict.clear { color: var(--ink); font-weight: 600; }
+.verdict.maybe { color: var(--ink-2); }
+
+/* ---- VO2 max among people of the same age: a strip in percentile space ---- */
+.peers-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-top: 4px; }
+.peers-head .big { font-size: 26px; font-weight: 650; letter-spacing: -0.01em; }
+.peers-head span { color: var(--ink-2); font-size: 13px; }
+.pstrip { position: relative; height: 14px; margin: 22px 8px 48px; border-radius: 7px; background: var(--wash); border: 1px solid var(--grid); }
+.pstrip .low { position: absolute; left: 0; top: 0; bottom: 0; background: var(--band); border-radius: 7px 0 0 7px; border-right: 1px dashed var(--axis); }
+.pstrip .err { position: absolute; top: 3px; bottom: 3px; border-radius: 4px; background: var(--track); }
+.pstrip .dot { position: absolute; top: -5px; width: 22px; height: 22px; margin-left: -11px; border-radius: 50%; background: var(--series-1); border: 3px solid var(--surface); }
+.pstrip .tick { position: absolute; top: 20px; transform: translateX(-50%); text-align: center; font-size: 11px; line-height: 1.35; color: var(--muted); white-space: nowrap; }
+.pstrip .tick b { display: block; font-weight: 500; }
+.pstrip .tick em { font-style: normal; color: var(--ink-2); font-variant-numeric: tabular-nums; }

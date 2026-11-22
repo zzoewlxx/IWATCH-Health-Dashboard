@@ -72,6 +72,10 @@ METRIC_INFO = {
     "hpDose7": ("最近 7 天（含当天）的耳机声音剂量，占 WHO 每周参考量的比例", "%"),
     "envNoise": ("环境噪音（Apple Watch，按时长的能量平均）", "分贝"),
     "envReduction": ("AirPods 降低的环境声音（日均）", "分贝"),
+    "modMin": ("中等强度（3 到 6 MET，来自手表的 PhysicalEffort）", "分钟"),
+    "vigMin": ("高强度（6 MET 及以上）", "分钟"),
+    "effortCover": ("PhysicalEffort 记录覆盖的时间（看手表戴了多久）", "分钟"),
+    "vigBursts": ("训练以外持续 1 到 3 分钟的高强度片段", "次"),
 }
 STAGE_KEYS = ["deep", "core", "rem", "unspecified", "awake", "in_bed"]
 

@@ -10,8 +10,9 @@ from hk import analysis as A                                        # noqa: E402
 from hk.reference import load_reference, params_by_id, validate     # noqa: E402
 
 USED_BY_ANALYSIS = {
-    "hrv_night", "rhr", "night_vitals", "sleep_duration", "sleep_debt", "sleep_regularity",
-    "sleep_timing_variability", "steps", "activity_minutes", "strength_days", "training_load",
+    "hrv_night", "rhr", "night_vitals", "night_hr_rise", "sleep_duration", "sleep_debt", "sleep_regularity",
+    "sleep_timing_variability", "steps", "activity_minutes", "activity_pattern", "strength_days", "training_load",
+    "vo2max_peers", "noise_band", "own_comparisons",
 }
 
 

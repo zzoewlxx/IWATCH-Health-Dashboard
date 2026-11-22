@@ -83,6 +83,10 @@
     for (let d = end; d >= a90; d--) {
       if (A.vitalsOut && A.vitalsOut[d] >= 2) flagged.push([dateLabel(d), HD.nightSignals(d).join('、'), noteText(d) || noteText(d - 1)]);
     }
+    const hrRule = (INDICATOR.get('night_hr_rise') || {}).params || { rise_bpm: 4, min_nights: 2 };
+    const hrRuns = ((H.analysis || {}).hrRuns || []).filter((e) => e.end >= a90 && e.start <= end).reverse()
+      .map((e) => [DAYS[e.start] + ' 至 ' + DAYS[e.end].slice(5), e.nights + ' 晚', '+' + num(e.rise, 1) + ' 次/分（平时约 ' + num(e.base, 0) + '）',
+        e.members.map((d) => noteText(d) || noteText(d - 1)).filter(Boolean).join('；')]);
     const ecgs = (H.ecg || []).filter((e) => e.d > end - 180 && e.d <= end).reverse()
       .map((e) => [e.date + ' ' + e.time, e.cls, e.hr == null ? '–' : e.hr + ' 次/分（估算）']);
     const marks = [];
@@ -104,6 +108,8 @@
       box('长期变化检查', '只有持续了一段时间的变化才会列为“值得留意”', el('div', { class: 'longs' }, HD.longRows(r, null))),
       box('多项夜间体征同时偏离的夜晚', '近 90 天；指同一晚有两项以上明显偏离本人此前四周的常态',
         flagged.length ? table(['日期（醒来那天）', '偏离的体征', '本人标注'], flagged, 3) : el('p', { class: 'desc', style: 'margin-top:10px', text: '近 90 天没有出现。' })),
+      box('睡眠心率连续偏高', `近 90 天；指连续 ${hrRule.min_nights} 晚以上比本人此前各晚的中位数高出 ${hrRule.rise_bpm} 次/分以上`,
+        hrRuns.length ? table(['日期（醒来那天）', '晚数', '最多高出', '本人标注'], hrRuns, 1) : el('p', { class: 'desc', style: 'margin-top:10px', text: '近 90 天没有出现。' })),
       box('心电图记录', '近 180 天；分类来自 Apple 的心电图 App（单导联）',
         ecgs.length ? table(['时间', '分类', '心率'], ecgs, 2) : el('p', { class: 'desc', style: 'margin-top:10px', text: '近 180 天没有心电图记录。' })),
       hearing.length ? box('听力测试', '最近 ' + hearing.length + ' 次（不限于近 90 天）；每只耳朵 500、1000、2000、4000 Hz 的平均听阈，自测结果，不是临床听力检查',
@@ -117,14 +123,14 @@
     vitals: '夜间身体信号和平时不一样', hrv_low: '这几天把强度降一档', rhr_high: '静息心率比平时高', sleep_short: '睡得偏少，补一补',
     sleep_below: '睡眠时长略低于建议', load_up: '这周加量有点快', load_restart: '刚恢复训练，慢慢来', sleep_irregular: '把作息固定下来',
     steps_low: '每天多走一走', activity_low: '这周活动量偏少', training_gap: '有一阵没训练了', strength_low: '加一次力量训练',
-    headphone_loud: '这周耳机音量偏大',
+    headphone_loud: '这周耳机音量偏大', hr_run: '睡眠心率连续几晚比平时高',
   };
   /** the same suggestions as the weekly report's quips, without the numbers that change week to week */
   const TIP_QUIP = {
     vitals: '身体盘面异动，先别加仓', hrv_low: '恢复指数连跌，减仓观望', rhr_high: '静息心率高位站岗', sleep_short: '睡眠账户亏损，逢低补仓',
     sleep_below: '重点关注睡眠 ETF', load_up: '训练杠杆加太猛，当心爆仓', load_restart: '重新建仓，先轻仓试水', sleep_irregular: '作息 K 线上蹿下跳',
     steps_low: '步数跌破均线，每天定投', activity_low: '运动成交量萎缩，小额加仓', training_gap: '被沙发套牢，择机复牌', strength_low: '三倍做多力量训练',
-    headphone_loud: '耳机音量高位运行，逢高减仓',
+    headphone_loud: '耳机音量高位运行，逢高减仓', hr_run: '心率夜盘连续高开，先别加仓',
   };
   function tally(list) {
     const rows = new Map();
@@ -168,7 +174,7 @@
       },
     };
   };
-  const unitOf = { night_vitals: ' 个标准差', hrv_night: ' 天', sleep_duration: ' 小时', sleep_timing_variability: ' 分钟', steps: ' 步', training_load: ' 倍', sleep_debt: ' 小时' };
+  const unitOf = { night_vitals: ' 个标准差', night_hr_rise: ' 次/分', hrv_night: ' 天', sleep_duration: ' 小时', sleep_timing_variability: ' 分钟', steps: ' 步', training_load: ' 倍', sleep_debt: ' 小时' };
 
   HD.backtestTab = (ctx, ui) => {
     const B = H.backtest;
@@ -198,10 +204,12 @@
     const N = B.annotations, flagged = N.flagged.slice().reverse();
     const signalCols = Object.keys(((INDICATOR.get('night_vitals') || {}).params || {}).signals || {});
     const zName = { sleepHr: '睡眠心率', sleepHrv: 'HRV', resp: '呼吸', wristTemp: '腕温', sleepSpo2: '血氧' };
+    const hrRule = (INDICATOR.get('night_hr_rise') || {}).params || { rise_bpm: 4 };
     const notes = N.annotated
-      ? [box('你标注的日子，身体信号有没有跟着变', `共标注 ${N.annotated} 天。“当晚或次晚被标出”指那两晚里有一晚出现了多项体征同时偏离`,
-        table(['标签', '标注天数', '能判断的', '当晚或次晚被标出', ...signalCols.map((k) => zName[k] + '平均偏离')],
+      ? [box('你标注的日子，身体信号有没有跟着变', `共标注 ${N.annotated} 天。“当晚或次晚被标出”指那两晚里有一晚出现了多项体征同时偏离；“睡眠心率偏高”指那两晚里有一晚比平时高出 ${hrRule.rise_bpm} 次/分以上`,
+        table(['标签', '标注天数', '能判断的', '当晚或次晚被标出', '睡眠心率偏高', ...signalCols.map((k) => zName[k] + '平均偏离')],
           N.tags.map((t) => [t.tag, String(t.days), String(t.judged), t.judged ? `${t.hits} 天（${num(100 * t.hits / t.judged)}%）` : '–',
+            t.hrJudged ? `${t.hrHits} 天（${num(100 * t.hrHits / t.hrJudged)}%）` : '–',
             ...signalCols.map((k) => (t.z[k] == null ? '–' : (t.z[k] > 0 ? '+' : '−') + num(Math.abs(t.z[k]), 1)))])),
         el('p', { class: 'desc', style: 'margin-top:10px', text: '平均偏离的单位是标准差，相对你此前四周的常态；同一个标签至少要有 3 个可比的夜晚才计算。样本很少时只能当参考。' }))]
       : [];
@@ -209,6 +217,12 @@
       flagged.length ? table(['日期（醒来那天）', '偏离的体征', '你的标注'],
         flagged.map((x) => [dateLabel(x.d), HD.nightSignals(x.d).join('、'), x.tags.join('、') + (x.note ? (x.tags.length ? '：' : '') + x.note : '')]), 3)
         : el('p', { class: 'desc', style: 'margin-top:10px', text: '到目前为止没有夜晚被标出。' })));
+    const runs = (N.hrRuns || []).slice().reverse();
+    notes.push(box('睡眠心率连续偏高的几次', `连续 2 晚以上比平时高出 ${hrRule.rise_bpm} 次/分；右边是你在这几晚或前一天写的标注。和上面的规则各算各的`,
+      runs.length ? table(['日期（醒来那天）', '晚数', '最多高出', '你的标注'],
+        runs.map((x) => [DAYS[x.start] + ' 至 ' + DAYS[x.end].slice(5), x.nights + ' 晚', '+' + num(x.rise, 1) + ' 次/分',
+          x.tags.join('、') + (x.note ? (x.tags.length ? '：' : '') + x.note : '')]), 1)
+        : el('p', { class: 'desc', style: 'margin-top:10px', text: '到目前为止没有出现。' })));
 
     return [
       el('div', { class: 'callout' }, '这一页回头看整段记录：每条建议出现得多不多，换一个界线会怎样，以及被标出的夜晚和你自己的标注对不对得上。界线都写在 pipeline/reference.json 里，改完重新运行更新，这一页就会跟着变。'),

@@ -23,6 +23,7 @@ QUANTITY_TYPES = {
     "WalkingAsymmetryPercentage", "AppleWalkingSteadiness", "SixMinuteWalkTestDistance",
     "StairAscentSpeed", "StairDescentSpeed", "HeadphoneAudioExposure",
     "EnvironmentalAudioExposure", "EnvironmentalSoundReduction",
+    "PhysicalEffort",                             # METs, written around the clock by the watch
 }
 CATEGORY_TYPES = {"SleepAnalysis", "AppleStandHour"}
 # Loud-sound notifications: the 7-day headphone limit, and the Noise app on the watch.

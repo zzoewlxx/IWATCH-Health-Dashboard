@@ -144,27 +144,44 @@
   };
 
   // ------------------------------------------------------------------ stat tiles
+  const NOISE = (H.noise || {}).keys || {}, NOISE_Z = (H.noise || {}).z || 1.96;
   /**
-   * o: { key, label, unit, dec, fmt, better:'up'|'down'|null, mode:'mean'|'latest', deltaFmt, sparse }
+   * The smallest change that is more than everyday ups and downs (reference.json noise_band):
+   * two single readings, or two averages over n1 and n2 days.
+   */
+  function noiseBand(key, mode, n1, n2) {
+    const t = NOISE[key];
+    if (!t) return null;
+    return mode === 'latest' ? NOISE_Z * Math.SQRT2 * t[0] : NOISE_Z * t[0] * Math.sqrt(1 / n1 + 1 / n2);
+  }
+  /**
+   * o: { key, label, unit, dec, fmt, better:'up'|'down'|null, mode:'mean'|'latest', deltaFmt, bandFmt, sparse }
    * mean   -> average over the range, compared with the equally long period before it
    * latest -> latest reading in the range, compared with the first reading in the range
+   * A change inside the wearer's everyday spread reads "持平", whatever its sign.
    */
   function kpi(o, ctx) {
     const arr = D[o.key], L = ctx.n, pa = ctx.a - L, pb = ctx.a - 1;
     const fmt = o.fmt || ((v) => num(v, o.dec || 0));
-    let value = null, delta = null, note = '';
+    let value = null, delta = null, note = '', band = null;
     if (o.mode === 'latest') {
       const fl = firstLast(arr, ctx.a, ctx.b);
       if (fl) {
         value = arr[fl.last];
         note = '最新 ' + DAYS[fl.last].slice(5);
-        if (fl.first !== fl.last) { delta = value - arr[fl.first]; note = '区间内变化（自 ' + DAYS[fl.first].slice(5) + '）'; }
+        if (fl.first !== fl.last) {
+          delta = value - arr[fl.first];
+          note = '区间内变化（自 ' + DAYS[fl.first].slice(5) + '）';
+          band = noiseBand(o.key, 'latest');
+        }
       }
     } else {
-      if (countOf(arr, ctx.a, ctx.b) >= 1) value = meanOf(arr, ctx.a, ctx.b);
-      if (value != null && pa >= 0 && countOf(arr, pa, pb) >= Math.min(3, L)) {
+      const n1 = countOf(arr, ctx.a, ctx.b), n2 = pa >= 0 ? countOf(arr, pa, pb) : 0;
+      if (n1 >= 1) value = meanOf(arr, ctx.a, ctx.b);
+      if (value != null && pa >= 0 && n2 >= Math.min(3, L)) {
         delta = value - meanOf(arr, pa, pb);
         note = '较前 ' + L + ' 天';
+        band = noiseBand(o.key, 'mean', n1, n2);
       }
     }
     const tile = el('div', { class: 'tile' });
@@ -177,11 +194,16 @@
     else if (delta == null) d.textContent = note || (o.mode === 'latest' ? '' : '此前没有可比数据');
     else {
       const eps = 0.5 * Math.pow(10, -(o.dec || 0));
-      const flat = Math.abs(delta) < (o.eps || eps);
+      const tiny = Math.abs(delta) < (o.eps || eps);
+      const calm = !tiny && band != null && Math.abs(delta) < band;      // real numbers, everyday size
+      const flat = tiny || calm;
       const up = delta > 0;
       const cls = flat || !o.better ? 'flat' : (up ? 'up' : 'down') === o.better ? 'good' : 'bad';
-      const text = flat ? '持平' : (up ? '▲ ' : '▼ ') + (o.deltaFmt ? o.deltaFmt(delta) : signed(delta, o.dec || 0) + (o.unit ? ' ' + o.unit : ''));
-      d.append(el('b', { class: cls, text }), ' ' + note);
+      const change = o.deltaFmt ? o.deltaFmt(delta) : signed(delta, o.dec || 0) + (o.unit ? ' ' + o.unit : '');
+      const text = flat ? '持平' : (up ? '▲ ' : '▼ ') + change;
+      const spread = band == null ? '' : o.bandFmt ? o.bandFmt(band) : num(band, o.dec || 0) + (o.unit ? ' ' + o.unit : '');
+      const title = band == null ? null : `变化 ${change}；超过 ${spread} 才算超出你的日常起伏`;
+      d.append(el('b', { class: cls, text, title }), ' ' + note + (calm ? ' · 在日常起伏内' : ''));
     }
     tile.append(d);
     const smooth = rolling(o.key, 7, o.sparse ? 1 : 3);
@@ -209,12 +231,14 @@
   const K = {
     rhr: { key: 'rhr', label: '静息心率', unit: 'bpm', dec: 1, better: 'down' },
     hrv: { key: 'hrv', label: '心率变异性（HRV）', unit: 'ms', dec: 1, better: 'up' },
-    sleep: { key: 'sleepTotal', label: '睡眠时长', fmt: hm, better: 'up', eps: 1 / 60, deltaFmt: (v) => signed(v * 60) + ' 分' },
-    bed: { key: 'bedtime', label: '平均入睡时间', fmt: clock, eps: 1, deltaFmt: (v) => (v > 0 ? '晚 ' : '早 ') + num(Math.abs(v)) + ' 分' },
-    wake: { key: 'waketime', label: '平均醒来时间', fmt: clock, eps: 1, deltaFmt: (v) => (v > 0 ? '晚 ' : '早 ') + num(Math.abs(v)) + ' 分' },
+    sleep: { key: 'sleepTotal', label: '睡眠时长', fmt: hm, better: 'up', eps: 1 / 60, deltaFmt: (v) => signed(v * 60) + ' 分', bandFmt: (v) => num(v * 60) + ' 分' },
+    bed: { key: 'bedtime', label: '平均入睡时间', fmt: clock, eps: 1, deltaFmt: (v) => (v > 0 ? '晚 ' : '早 ') + num(Math.abs(v)) + ' 分', bandFmt: (v) => num(v) + ' 分' },
+    wake: { key: 'waketime', label: '平均醒来时间', fmt: clock, eps: 1, deltaFmt: (v) => (v > 0 ? '晚 ' : '早 ') + num(Math.abs(v)) + ' 分', bandFmt: (v) => num(v) + ' 分' },
     steps: { key: 'steps', label: '日均步数', unit: '步', dec: 0, better: 'up' },
     active: { key: 'activeKcal', label: '日均活动能量', unit: '千卡', dec: 0, better: 'up' },
     exercise: { key: 'exerciseMin', label: '日均锻炼时间', unit: '分', dec: 0, better: 'up' },
+    mod: { key: 'modMin', label: '日均中等强度', unit: '分', dec: 0, better: 'up' },
+    vig: { key: 'vigMin', label: '日均高强度', unit: '分', dec: 0, better: 'up' },
     stand: { key: 'standHours', label: '日均站立小时', unit: '小时', dec: 1, better: 'up' },
     distance: { key: 'distance', label: '日均步行 + 跑步', unit: '公里', dec: 2, better: 'up' },
     total: { key: 'totalKcal', label: '日均总消耗', unit: '千卡', dec: 0 },
@@ -257,9 +281,57 @@
     rhr: { title: '静息心率', desc: '越低通常代表心肺恢复越好；换设备后的数值不可直接比较', build: trend({ key: 'rhr', name: '静息心率', unit: 'bpm', dec: 1, eras: true, baseline: true }) },
     hrv: { title: '心率变异性（HRV，SDNN）', desc: '个人基线内越高通常代表恢复越好', build: trend({ key: 'hrv', name: 'HRV', unit: 'ms', dec: 1, baseline: true }) },
     weight: { title: '体重', build: trend({ key: 'weight', name: '体重', unit: 'kg', dec: 1, sparse: true, minN: 1 }) },
-    vo2: { title: '最大摄氧量（VO₂max）', desc: '手表在户外步行 / 跑步 / 徒步后估算，更新较稀疏', build: trend({ key: 'vo2max', name: 'VO₂max', unit: 'ml/kg·min', dec: 1, sparse: true, roll: 0 }) },
+    vo2: { title: '最大摄氧量（VO₂max）', desc: '手表在户外步行 / 跑步 / 徒步后估算，更新较稀疏' + (HD.vo2Band() ? '；浅色带是同龄同性别中间一半的人' : ''), build: trend({ key: 'vo2max', name: 'VO₂max', unit: 'ml/kg·min', dec: 1, sparse: true, roll: 0, band: HD.vo2Band(),
+      // keep the whole band on the axis, so the readings show where they sit in it
+      yMin: HD.vo2Band() ? (v) => 5 * Math.floor((Math.min(v.min, HD.vo2Band()[0]) - 1) / 5) : undefined,
+      yMax: HD.vo2Band() ? (v) => 5 * Math.ceil((Math.max(v.max, HD.vo2Band()[1]) + 1) / 5) : undefined }) },
     sleepStages: { title: '睡眠时长与分期', desc: '按醒来日期统计，包含小睡', span: 12, h: 260, build: HD.sleepStages },
   };
+
+  // ------------------------------------------------------------------ intensity (the watch's METs)
+  const AD = (H.analysis || {}).daily || {};
+  const refParams = (id) => ((((H.reference || {}).indicators || []).find((x) => x.id === id)) || {}).params || {};
+  const lastIn = (arr, a, b) => { for (let i = b; i >= a; i--) if (arr && arr[i] != null) return i; return null; };
+  function intensitySection(ctx) {
+    if (!D.modMin || !D.modMin.some((v) => v != null)) return [];
+    const pa = refParams('activity_minutes'), pp = refParams('activity_pattern');
+    const [lo, hi] = pa.moderate_min || [150, 300], weight = pa.vigorous_weight || 2, burst = pp.burst_minutes || [1, 3];
+    return [
+      section('强度'),
+      grid(ctx, [
+        { title: '每天的中高强度', desc: `手表估算的用力程度（MET）：${pa.moderate_met}–${pa.vigorous_met} 为中等强度，${pa.vigorous_met} 以上为高强度；基本没戴表的日子留空`, span: 12,
+          build: stackTrend({ parts: [{ key: 'modMin', name: '中等强度', color: c1 }, { key: 'vigMin', name: '高强度', color: c2 }], unit: '分' }) },
+        {
+          title: '每周中高强度', desc: `近 7 天合计，1 分钟高强度按 ${weight} 分钟算；浅色带是世卫组织推荐的每周 ${lo}–${hi} 分钟`,
+          build: (c) => {
+            const out = trend({ key: 'mvpa7', values: AD.mvpa7, name: '中高强度', unit: '分', roll: 0, band: [lo, hi, `每周 ${lo}–${hi} 分钟`] })(c);
+            const i = lastIn(AD.mvpa7, c.a, c.b);
+            if (!out.empty && i != null) {
+              const spread = AD.mvpa7[i] >= lo && AD.topShare7[i] != null && AD.topShare7[i] >= (pp.top_share || 0.5);
+              out.note = `截至 ${DAYS[i].slice(5)}：近 7 天 ${num(AD.mvpa7[i])} 分钟（中等 ${num(AD.mod7[i])} + 高强度 ${num(AD.vig7[i])} × ${weight}）` +
+                (spread ? `，${num(100 * AD.topShare7[i])}% 集中在两天里完成。研究发现，每周达标时集中练和分散练获益相近` : '');
+            }
+            return out;
+          },
+        },
+        { title: '生活里的高强度片段', desc: `训练以外持续 ${burst[0]}–${burst[1]} 分钟的高强度，比如快步爬几层楼、小跑赶车。研究里每天 3 次左右，就和明显更低的心血管风险相关`,
+          build: trend({ key: 'vigBursts', name: '高强度片段', unit: '次', form: 'bar' }) },
+      ]),
+    ];
+  }
+
+  /** the weekly rhythm of body weight, with a plain verdict and the size of everyday ups and downs */
+  function weightRhythm(ctx) {
+    const out = HD.weekdayRhythm({ key: 'weight', unit: 'kg', dec: 2 })(ctx);
+    if (out.empty) return out;
+    const te = NOISE.weight ? NOISE.weight[0] : null;
+    const days = WEEKDAY.filter((_, i) => out.clear[i]);
+    out.note = (days.length ? `${days.join('、')}和前后几天的差别，按同时比较 7 天的严格标准也站得住。`
+      : '你的记录里看不出明显的星期节律（同时比较 7 天，用了更严的标准）。') +
+      (te ? `平时每次称重的起伏约 ±${num(te, 2)} kg，两次单独称重相差 ${num(NOISE_Z * Math.SQRT2 * te, 1)} kg 以内，都可能只是起伏。` : '') +
+      '研究发现，周末之后偏重、工作日慢慢回落是正常的节律，不是长胖。';
+    return out;
+  }
 
   // ------------------------------------------------------------------ rings
   function ringMeters(ctx) {
@@ -476,13 +548,17 @@
     return [
       section('最近状态'),
       grid(ctx, [{ title: '相对个人基线', desc: '所选范围最后 7 天的均值，对比此前 28 天你自己的常态', span: 12, emptyText: '数据不足，无法建立基线（需要此前 28 天里至少 10 天有数据）', build: HD.baselineStatus }]),
+      section('这算真的变化吗'),
+      grid(ctx, [{ title: '多大的变化才算数', desc: '按你自己最近一年的起伏来算，不受上方时间范围影响', span: 12, emptyText: '数据还不够：每项至少要有 20 对相邻的读数', build: HD.noiseTable }]),
+      section('你自己的对照'),
+      ...HD.contrastNodes(ui),
       section('纪录与习惯'),
       grid(ctx, [
         { title: '个人纪录', desc: '所选时间范围内', build: HD.records },
         { title: '连续天数', desc: '所选时间范围内；「当前」算到最后一个完整的日子', build: HD.streaks },
       ]),
       section('指标之间的关系'),
-      el('div', { class: 'callout', text: '每个点是一天。r 是相关系数（−1 到 +1），黑线是整体趋势。相关不等于因果：比如训练多的日子睡眠心率高，可能只是因为训练本身。有效数据少于 20 天的不显示。' }),
+      el('div', { class: 'callout', text: '每个点是一天。r 是相关系数（−1 到 +1），黑线是整体趋势；括号里是 95% 区间（按整周重抽样，因为相邻几天彼此相像），区间跨过 0 就说还看不出关系。相关不等于因果：比如训练多的日子睡眠心率高，可能只是因为训练本身。有效数据少于 20 天的不显示。' }),
       grid(ctx, [
         SC('睡眠时长 与 当天 HRV', AX.sleep, AX.hrv),
         SC('睡眠时长 与 当天静息心率', AX.sleep, AX.rhr),
@@ -510,8 +586,9 @@
     },
     {
       id: 'activity', name: '活动', render(ctx) {
+        const hasEffort = !!(D.modMin && D.modMin.some((v) => v != null));
         return [
-          tiles(ctx, [K.steps, K.active, K.exercise, K.stand, K.distance, K.total]),
+          tiles(ctx, [K.steps, K.active, K.exercise].concat(hasEffort ? [K.mod, K.vig] : [], [K.stand, K.distance, K.total])),
           section('每日活动'),
           grid(ctx, [
             C.steps, C.active, C.exercise, C.stand,
@@ -519,6 +596,7 @@
             { title: '一周各天的步数', desc: '所选范围内，按星期几取平均', build: HD.weekdayBars({ key: 'steps', name: '步数', unit: '步' }) },
             { title: '步数日历', desc: '每格一天，颜色越深步数越多', span: 12, h: HD.calendarHeight, build: HD.calendar({ key: 'steps', name: '步数', unit: '步', zero: true }) },
           ]),
+          ...intensitySection(ctx),
           section('能量与距离'),
           grid(ctx, [
             { title: '每日总消耗', desc: '静息能量 + 活动能量', span: 12, build: stackTrend({ parts: [{ key: 'basalKcal', name: '静息能量', color: (T) => T.soft }, { key: 'activeKcal', name: '活动能量', color: c2 }], unit: '千卡', totalKey: 'totalKcal', eras: 'basalKcal' }) },
@@ -544,6 +622,9 @@
           ]),
           section('夜间生命体征'),
           grid(ctx, [
+            { title: '睡眠心率：和平时比', span: 12, h: 240, emptyText: '需要先积累 14 晚以上的睡眠心率',
+              desc: '每晚的睡眠心率减去此前最多 90 晚的中位数。连续 2 晚高出 4 次/分以上，周报会提一句；它和“多项体征同时偏离”各算各的',
+              build: HD.nightHrRise },
             { title: '睡眠平均心率', span: 4, build: trend({ key: 'sleepHr', name: '睡眠心率', unit: 'bpm', dec: 1, eras: true, baseline: true }) },
             { title: '睡眠期间 HRV', span: 4, build: trend({ key: 'sleepHrv', name: 'HRV', unit: 'ms', dec: 1, baseline: true }) },
             { title: '呼吸频率', span: 4, build: trend({ key: 'resp', name: '呼吸频率', unit: '次/分', dec: 1, eras: true, baseline: true }) },
@@ -561,7 +642,8 @@
           section('恢复与体能'),
           grid(ctx, [C.rhr, C.hrv,
             { title: '步行平均心率', build: trend({ key: 'walkHr', name: '步行心率', unit: 'bpm', dec: 0 }) },
-            C.vo2]),
+            C.vo2,
+            { title: 'VO₂max 的同龄参照', desc: '和同龄同性别的人比，大概在什么位置；不受上方时间范围影响', span: 12, emptyText: '还没有 VO₂max 读数：戴着手表做户外步行、跑步或徒步后会有', build: HD.vo2Peers(ui) }]),
           section('全天心率'),
           grid(ctx, [
             { title: '每日心率范围', desc: '竖条是当天最低到最高，线是全天平均（按 5 分钟分箱，避免运动时的密集采样拉高均值）', span: 12, h: 260, build: HD.hrRange },
@@ -599,6 +681,8 @@
             { title: '去脂体重', build: trend({ key: 'lean', name: '去脂体重', unit: 'kg', dec: 1, sparse: true, minN: 1 }) },
             { title: '脂肪量', desc: '体重 × 体脂率', build: trend({ key: 'fatMass', name: '脂肪量', unit: 'kg', dec: 1, sparse: true, minN: 1 }) },
             { title: 'BMI', build: trend({ key: 'bmi', name: 'BMI', dec: 1, sparse: true, minN: 1, band: [18.5, 23.9, '中国成人正常范围 18.5–23.9'] }) },
+            { title: '一周里的体重起伏', emptyText: '称重的次数还不够看出星期节律', build: weightRhythm,
+              desc: '每次称重和前后三天其他称重的平均差多少，按星期几平均；竖线是 95% 范围。看最近一年，不受上方时间范围影响' },
           ]),
         ];
       },
@@ -732,7 +816,12 @@
         el('li', null, el('b', { text: '趋势线：' }), '日视图中的粗线是过去 7 天的滑动平均（至少 3 天有数据才画）；周 / 月视图是该周 / 月内有数据日子的平均值，周从周一开始，范围两端的周 / 月取整周 / 整月。'),
         el('li', null, el('b', { text: '换设备：' }), '图上的竖线标出某项指标的主要数据来源发生变化的日期。不同设备的算法不同（尤其是静息心率、睡眠分期），跨竖线两侧的数值不宜直接比较。'),
         el('li', null, el('b', { text: '个人基线：' }), '每一天的基线范围是此前 28 天（至少 10 天有数据）的均值 ± 1 个标准差，不包含当天，所以每个数值都是和你自己的过去比。「洞察」页用所选范围最后 7 天的均值，对比再往前的 28 天。'),
-        el('li', null, el('b', { text: '关联分析：' }), '皮尔逊相关系数，每个点是一天；「当晚」「次日」表示把后一天的数值对到前一天。有效数据少于 20 天不计算。相关不等于因果。'),
+        el('li', null, el('b', { text: '关联分析：' }), '皮尔逊相关系数，每个点是一天；「当晚」「次日」表示把后一天的数值对到前一天。95% 区间按整周（7 个点一组）重抽样 400 次得到，因为相邻几天彼此相像，逐天重抽样会让区间显得过窄；区间跨过 0 就说还看不出关系。有效数据少于 20 天不计算。相关不等于因果。'),
+        el('li', null, el('b', { text: '睡眠心率连续偏高：' }), '每晚睡着时段的平均心率，减去此前最多 90 晚的中位数（至少 14 晚）。高出 4 次/分以上的夜晚算偏高；连续 2 晚偏高，周报会提一句，中间缺 1 晚数据不打断。和“多项夜间体征同时偏离”是两条独立的规则，两边的结果都会显示。'),
+        el('li', null, el('b', { text: '活动强度：' }), 'Apple Watch 戴着时持续记录用力程度（PhysicalEffort，单位 MET）。3 到 6 MET 算中等强度，6 MET 及以上算高强度，周报里 1 分钟高强度按 2 分钟算；当天记录覆盖不到 40% 的时间按没戴表处理。没有这类记录的设备，改用锻炼分钟。'),
+        el('li', null, el('b', { text: '这算真的变化吗：' }), '每项指标最近一年里相邻两次读数之差的标准差 ÷ √2 是它的典型误差。指标卡上的涨跌，只有超过 1.96 × 典型误差 × √(1/n₁ + 1/n₂)（两段的平均值）或 1.96 × √2 × 典型误差（两个单独读数）才显示箭头，否则显示“持平”。周报的分数，用此前 12 期相邻两期之差的 1.96 个标准差作界线。'),
+        el('li', null, el('b', { text: '你自己的对照：' }), '把有某种情况的夜晚和没有的夜晚分两组比平均值，周末和工作日分开比再合并；区间用自助法重抽样 2,000 次，每组至少 8 晚；所有比较一起做 Benjamini–Hochberg 校正（错误发现率 10%）。'),
+        el('li', null, el('b', { text: 'VO₂max 同龄参照：' }), '最近一次读数之前 30 天内读数的平均，在 FRIEND 2015 跑步机测试的同龄同性别百分位表里线性插值；Apple 健康 App 的心肺适能分级用的也是这份参照。'),
         el('li', null, el('b', { text: '耳机：' }), 'iPhone 和 iPad 用耳机播放媒体时记录耳机里的音量（电话不计入），每条记录是一段时间和它的平均分贝。收听时长把重叠的记录只算一次；平均音量按时长做能量平均；声音剂量按 WHO 与国际电信联盟的安全收听标准，80 分贝听 40 小时为 100%，每高 3 分贝时间减半，取往前 7 天的合计。中间停顿不超过 5 分钟、用同一副耳机的记录算作一次收听。耳机型号来自记录里的设备信息，其中的蓝牙地址不会保存。'),
         el('li', null, el('b', { text: '单日详情：' }), '心率按分钟取平均，步数按小时汇总（已去重），都是当地时间。睡眠色带把跨午夜的一晚按日历日切开显示。')),
       el('div', { class: 'callout', text: '本看板只做数据整理与展示，参考范围为通用健康指引，不构成医疗诊断或建议。如有不适或数值持续异常，请咨询医生。' }));

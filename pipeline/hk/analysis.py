@@ -109,6 +109,65 @@ def night_outliers(daily: dict[str, list], n: int, p: dict):
     return zs, evaluable, outliers
 
 
+def night_hr_runs(values: list, *, baseline_nights: int, min_baseline: int, rise_bpm: float,
+                  max_gap_nights: int):
+    """Sleeping heart rate against the wearer's own usual level, night by night (the
+    NightSignal rule, Alavi et al. 2022).
+
+    Returns (base, rise, run): the median of up to ``baseline_nights`` earlier nights (at
+    least ``min_baseline`` of them, the night itself excluded), how far the night sits above
+    it, and how many nights in a row, ending with this one, sat ``rise_bpm`` or more above
+    (0 when this one did not; None when it cannot be judged). Up to ``max_gap_nights``
+    nights without data do not break a run, and are not counted in it.
+    """
+    n = len(values)
+    base: list = [None] * n
+    rise: list = [None] * n
+    run: list = [None] * n
+    hist: list[float] = []
+    count = 0
+    last = None                                       # the last night with data
+    for i, v in enumerate(values):
+        if v is None:
+            continue
+        if last is not None and i - last - 1 > max_gap_nights:
+            count = 0
+        if len(hist) >= min_baseline:
+            b = median(hist[-baseline_nights:])
+            base[i], rise[i] = b, v - b
+            count = count + 1 if v - b >= rise_bpm - 1e-9 else 0
+            run[i] = count
+        else:
+            count = 0
+        hist.append(v)
+        last = i
+    return base, rise, run
+
+
+def hr_episodes(run: list, rise: list, base: list, *, min_nights: int, max_gap_nights: int,
+                upto: int | None = None) -> list[dict]:
+    """Runs of high-heart-rate nights that reached ``min_nights``, as known on day ``upto``.
+
+    Each is {start, end, nights, members (the nights in it), rise (the largest, bpm), base
+    (the usual level on its last night), ongoing (not over yet on day ``upto``)}.
+    """
+    upto = len(run) - 1 if upto is None else upto
+    nights = [j for j in range(upto + 1) if run[j] is not None]
+    out = []
+    for k, j in enumerate(nights):
+        r = run[j]
+        if r < min_nights:
+            continue
+        nxt = nights[k + 1] if k + 1 < len(nights) else None
+        if nxt is not None and run[nxt] == r + 1:
+            continue                                  # the run goes on
+        members = nights[k - r + 1: k + 1]
+        out.append({"start": members[0], "end": j, "nights": r, "members": members,
+                    "rise": round(max(rise[m] for m in members), 1), "base": round(base[j], 1),
+                    "ongoing": nxt is None and upto - j <= max_gap_nights})
+    return out
+
+
 # ---------------------------------------------------------------------------------------
 # sleep
 # ---------------------------------------------------------------------------------------
@@ -268,7 +327,8 @@ def build_analysis(*, days: list[str], daily: dict[str, list], sleep_kind: list,
     """All derived series for the dashboard and health.db.
 
     ``params`` is reference.params_by_id(...). Returns
-    {"params": {...}, "daily": {key: [per day]}, "workoutLoad": [(load, estimated)]}.
+    {"params": {...}, "daily": {key: [per day]}, "workoutLoad": [(load, estimated)],
+    "hrRuns": [runs of high-heart-rate nights over the whole record, see hr_episodes]}.
     """
     P = params
     n = len(days)
@@ -299,6 +359,17 @@ def build_analysis(*, days: list[str], daily: dict[str, list], sleep_kind: list,
     out["vitalsN"] = evaluable
     out["vitalsOut"] = outliers
 
+    # The second overnight rule, kept alongside the one above: sleeping heart rate a few
+    # beats above its usual level for nights in a row.
+    hp = P["night_hr_rise"]
+    hr_base, hr_rise, hr_run = night_hr_runs(
+        daily.get("sleepHr") or [None] * n, baseline_nights=hp["baseline_nights"], min_baseline=hp["min_baseline"],
+        rise_bpm=hp["rise_bpm"], max_gap_nights=hp["max_gap_nights"])
+    out["hrBase"] = _round(hr_base, 1)
+    out["hrRise"] = _round(hr_rise, 1)
+    out["hrRun"] = hr_run
+    episodes = hr_episodes(hr_run, hr_rise, hr_base, min_nights=hp["min_nights"], max_gap_nights=hp["max_gap_nights"])
+
     # A night whose record was probably cut short says nothing reliable about how long the
     # wearer slept, so it is treated like a night without data.
     cut = daily.get("sleepCut") or [None] * n
@@ -318,7 +389,24 @@ def build_analysis(*, days: list[str], daily: dict[str, list], sleep_kind: list,
     out["exercise7"] = _round([None if v is None else v * a["window_days"] for v in weekly], 0)
     out["steps7"] = _round(rolling_mean(daily["steps"], s["window_days"], s["min_days"]), 0)
 
-    return {"params": {"sleepNeed": need}, "daily": out, "workoutLoad": loads}
+    # Intensity from the watch's METs. intensity.py already leaves days the watch was hardly
+    # worn empty; a vigorous minute stands in for two moderate ones (WHO's equivalence).
+    mod = daily.get("modMin") or [None] * n
+    vig = daily.get("vigMin") or [None] * n
+    equal = [None if m is None or g is None else m + a["vigorous_weight"] * g for m, g in zip(mod, vig)]
+    for key, series in (("mvpa7", equal), ("mod7", mod), ("vig7", vig)):
+        week = rolling_mean(series, a["window_days"], a["min_days"])
+        out[key] = _round([None if v is None else v * a["window_days"] for v in week], 0)
+    out["bursts7"] = _round(rolling_mean(daily.get("vigBursts") or [None] * n, a["window_days"], a["min_days"]), 1)
+    pp = P["activity_pattern"]
+    top: list = [None] * n
+    for i in range(n):
+        w = _vals(equal, i - a["window_days"] + 1, i)
+        if len(w) >= a["min_days"] and sum(w) > 0:
+            top[i] = sum(sorted(w)[-pp["top_days"]:]) / sum(w)
+    out["topShare7"] = _round(top, 2)
+
+    return {"params": {"sleepNeed": need}, "daily": out, "workoutLoad": loads, "hrRuns": episodes}
 
 
 def series_info(params: dict[str, dict], sleep_need: float) -> dict[str, tuple[str, str]]:
@@ -326,6 +414,8 @@ def series_info(params: dict[str, dict], sleep_need: float) -> dict[str, tuple[s
     P = params
     h, r, v, d = P["hrv_night"], P["rhr"], P["night_vitals"], P["sleep_duration"]
     debt, reg, var, t = P["sleep_debt"], P["sleep_regularity"], P["sleep_timing_variability"], P["training_load"]
+    hp, a, pp = P["night_hr_rise"], P["activity_minutes"], P["activity_pattern"]
+    w = a["window_days"]
     night = f"当晚相对此前 {v['baseline_days']} 天偏离的标准差数"
     return {
         "hrv7": (f"夜间 HRV：近 {h['recent_days']} 晚均值", "ms"),
@@ -344,6 +434,9 @@ def series_info(params: dict[str, dict], sleep_need: float) -> dict[str, tuple[s
         "zSleepSpo2": ("睡眠血氧：" + night, ""),
         "vitalsN": ("当晚可以比较的夜间体征项数", "项"),
         "vitalsOut": (f"当晚向不利方向偏离 {v['outlier_sd']} 个标准差以上的夜间体征项数", "项"),
+        "hrBase": (f"睡眠心率：个人基线（此前最多 {hp['baseline_nights']} 晚的中位数）", "bpm"),
+        "hrRise": ("睡眠心率：当晚高出基线多少", "bpm"),
+        "hrRun": (f"睡眠心率：连续高出基线 {hp['rise_bpm']:g} 次/分以上的晚数（截至当晚，0 为当晚没有偏高）", "晚"),
         "sleep7": (f"睡眠时长：近 {d['window_days']} 天平均", "小时"),
         "shortNights7": (f"近 {d['window_days']} 天里不足 {d['short_night_hours']} 小时的晚数", "晚"),
         "sleepDebt14": (f"近 {debt['window_days']} 天睡眠欠账（按每晚需要 {sleep_need:g} 小时；正数为欠，负数为盈余）", "小时"),
@@ -359,4 +452,9 @@ def series_info(params: dict[str, dict], sleep_need: float) -> dict[str, tuple[s
         "strengthDays7": (f"近 {P['strength_days']['window_days']} 天里有力量训练的天数", "天"),
         "exercise7": (f"锻炼分钟：近 {P['activity_minutes']['window_days']} 天合计", "分钟"),
         "steps7": (f"步数：近 {P['steps']['window_days']} 天日均", "步"),
+        "mvpa7": (f"中高强度：近 {w} 天合计（1 分钟高强度按 {a['vigorous_weight']:g} 分钟算）", "分钟"),
+        "mod7": (f"中等强度（{a['moderate_met']:g}–{a['vigorous_met']:g} MET）：近 {w} 天合计", "分钟"),
+        "vig7": (f"高强度（{a['vigorous_met']:g} MET 及以上）：近 {w} 天合计", "分钟"),
+        "bursts7": (f"训练以外 {pp['burst_minutes'][0]:g}–{pp['burst_minutes'][1]:g} 分钟的高强度片段：近 {w} 天日均", "次"),
+        "topShare7": (f"近 {w} 天的中高强度里，最多的 {pp['top_days']} 天所占的比例", ""),
     }

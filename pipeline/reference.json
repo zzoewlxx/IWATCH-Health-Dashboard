@@ -1,11 +1,12 @@
 {
   "version": 1,
-  "updated": "2026-11-21",
+  "updated": "2026-11-22",
   "about": "看板里每一个参考区间和判断依据都列在这里：怎么算、用了哪些数字、出处是什么、证据有多强。计算直接读取这份文件里的参数，改了这里，结果就跟着变。",
   "principles": [
     "个体差异大的指标（HRV、静息心率、呼吸频率、手腕温度）只和你自己的基线比；有公认指南的指标（睡眠时长、步数、运动量）才用人群标准。",
     "看一段时间的均值，不看单独一天。单晚的波动很常见，多数没有意义。",
     "设备测不准的指标不参与判断，原因列在最后。",
+    "变化要超出你自己的日常起伏才算数；比较两组日子时给出区间，区间跨过 0 就说还看不出差别。",
     "没有提示不等于没有问题，有提示也不等于有问题。这里的内容帮你了解自己，不是诊断。"
   ],
   "grades": {
@@ -24,8 +25,10 @@
     "sleep": "睡眠",
     "activity": "日常活动",
     "training": "训练",
+    "fitness": "心肺适能",
     "long": "长期变化",
-    "hearing": "耳机与听力"
+    "hearing": "耳机与听力",
+    "method": "判断变化的方法"
   },
   "scores": {
     "about": "睡眠和日常活动各有一个 0 到 100 的分数，表示这 7 天对照指南完成了多少。恢复和训练负荷只能和你自己比，谈不上“完成度”，所以不打分，只给状态。",
@@ -99,7 +102,7 @@
         },
         {
           "key": "exercise",
-          "label": "运动分钟",
+          "label": "中高强度",
           "max": 40,
           "indicator": "activity_minutes",
           "curve": [
@@ -112,7 +115,7 @@
               1
             ]
           ],
-          "rule": "7 天累计 150 分钟得满分，不足的按比例。"
+          "rule": "7 天累计 150 分钟中高强度活动得满分（1 分钟高强度按 2 分钟算），不足的按比例。没有手表的强度记录时，用锻炼分钟。"
         },
         {
           "key": "strength",
@@ -285,6 +288,42 @@
           "url": "https://pubmed.ncbi.nlm.nih.gov/33208926/",
           "finding": "32 例感染者中，26 例的心率、步数或睡眠时长出现了可检测到的变化，多数在症状出现之前或当时就能看到。",
           "checked": "abstract"
+        }
+      ]
+    },
+    {
+      "id": "night_hr_rise",
+      "group": "recovery",
+      "name": "睡眠心率连续偏高",
+      "range": "只和自己比。睡眠心率比你此前各晚的中位数高出 4 次/分以上，并且连续 2 晚，算连续偏高。",
+      "method": "每晚的睡眠心率是睡着时段里全部心率读数的平均。基线是此前最多 90 晚的中位数（至少 14 晚有数据），不含当晚。高出基线 4 次/分以上的夜晚算偏高，连续 2 晚偏高才提示。中间缺 1 晚数据不打断连续，但缺的那晚不计数；缺 2 晚以上重新数。这条规则和“夜间体征同时偏离”各算各的，两边的结果都会显示。",
+      "params": {
+        "baseline_nights": 90,
+        "min_baseline": 14,
+        "rise_bpm": 4,
+        "min_nights": 2,
+        "max_gap_nights": 1,
+        "long_nights": 5
+      },
+      "grade": "B",
+      "grade_note": "规则来自一项 3,318 人的前瞻性研究（NightSignal 算法）：连续两晚夜间静息心率比个人中位数高 4 次/分以上就亮红灯。原研究的夜间心率取 0 点到 7 点、步数为零时的读数，基线是此前全部夜晚的中位数，7 晚后基本稳定。这里用睡着时段的读数；基线只看最近 90 晚，因为体能和季节会让心率慢慢变化；至少 14 晚才开始判断，比原研究保守一些。",
+      "caveats": [
+        "健康的时候也会亮：原研究里，没有感染的人亮灯时最常见的是压力、剧烈运动和饮酒，冬季假期前后亮灯多 1.4 倍。",
+        "持续多久有参考意义：原研究里，感染新冠的人连续亮灯平均 6.2 天，检测阴性的人平均 3.5 天。",
+        "只偏高一晚很常见，不会提示；睡前喝酒、晚上练得很猛、房间太热都会让当晚心率升高。"
+      ],
+      "sources": [
+        {
+          "cite": "Alavi A 等. Real-time alerting system for COVID-19 and other stress events using wearable data. Nature Medicine, 2022.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/34845389/",
+          "finding": "3,318 人的前瞻性研究：以夜间静息心率的流式中位数为基线，连续两晚高出 4 次/分以上触发红色提醒。84 名新冠感染者中有 67 人（80%）在症状出现或确诊之前被提示，中位提前 3 天。没有感染的人亮灯时，最常见的是压力、剧烈运动和饮酒；73% 的参与者认为提醒的频率可以接受。",
+          "checked": "fulltext"
+        },
+        {
+          "cite": "Quer G 等. Inter- and intraindividual variability in daily resting heart rate and its associations with age, sex, sleep, BMI, and time of year: Retrospective, longitudinal cohort study of 92,457 adults. PLOS ONE, 2020.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/32023264/",
+          "finding": "9.2 万人、最长两年：人与人之间的静息心率最多相差 70 次/分，而同一个人一周内的变化通常只有约 3 次/分；比自己的平均值高出 2 个标准差以上的情况很少，两年里的中位数是 3 次。",
+          "checked": "fulltext"
         }
       ]
     },
@@ -505,9 +544,9 @@
     {
       "id": "activity_minutes",
       "group": "activity",
-      "name": "每周运动分钟",
+      "name": "每周中高强度活动",
       "range": "每周 150 到 300 分钟中等强度，或 75 到 150 分钟高强度，或两者的等量组合。",
-      "method": "把 Apple Watch 记录的“锻炼分钟”（强度达到快走及以上的分钟数）近 7 天相加，近似代表中等及以上强度的活动时间。缺数据的日子按其余日子的平均补齐，至少 5 天有数据才计算。某一天有心率记录的时段不到 40%，说明基本没戴表，这一天按缺数据处理。",
+      "method": "Apple Watch 戴着时会持续记录身体的用力程度（PhysicalEffort，单位是 MET：安静坐着约 1，快走约 3 到 4）。3 到 6 MET 的时间算中等强度，6 MET 及以上算高强度；按世卫组织的等量组合，1 分钟高强度按 2 分钟中等强度算，近 7 天相加。某一天这类记录覆盖的时间不到 40%，说明基本没戴表，这一天按缺数据处理；缺数据的日子按其余日子的平均补齐，至少 5 天有数据才计算。没有这类记录的时候（较早的手表或系统），改用 Apple Watch 的“锻炼分钟”（强度达到快走及以上的分钟数，分不出中等和高强度）。",
       "params": {
         "window_days": 7,
         "min_days": 5,
@@ -519,19 +558,23 @@
           75,
           150
         ],
-        "min_wear_percent": 40
+        "min_wear_percent": 40,
+        "moderate_met": 3,
+        "vigorous_met": 6,
+        "vigorous_weight": 2
       },
       "grade": "A",
-      "grade_note": "世卫组织和中国指南的推荐一致。这里用“锻炼分钟”近似，分不出中等强度和高强度，所以只和 150 到 300 分钟这一档比。",
+      "grade_note": "世卫组织和中国指南的推荐一致。强度按 MET 的绝对值划分，和世卫组织的定义相同；MET 是手表根据心率和动作估算的，不是实验室测量。",
       "caveats": [
-        "“锻炼分钟”的强度门槛由 Apple Watch 判定，和指南里的“中等强度”不完全等同。",
+        "强度按 MET 的绝对值划分：体能好的人快走可能只算中等强度，体能弱的人爬楼梯就可能达到高强度。",
+        "力量训练这类心率不高但很费力的运动，MET 估算可能偏低。",
         "有运动总比没有好；达不到推荐量时，多动一点也有益。"
       ],
       "sources": [
         {
           "cite": "Bull FC 等. World Health Organization 2020 guidelines on physical activity and sedentary behaviour. British Journal of Sports Medicine, 2020.",
           "url": "https://pubmed.ncbi.nlm.nih.gov/33239350/",
-          "finding": "成年人每周 150 到 300 分钟中等强度，或 75 到 150 分钟高强度有氧活动，或等量组合；任何身体活动都比没有好。",
+          "finding": "成年人每周 150 到 300 分钟中等强度，或 75 到 150 分钟高强度有氧活动，或等量组合；任何身体活动都比没有好。中等强度指 3 到不足 6 MET，高强度指 6 MET 及以上；任何时长的中高强度活动都计入推荐量。",
           "checked": "fulltext"
         },
         {
@@ -541,10 +584,65 @@
           "checked": "secondary"
         },
         {
+          "cite": "Apple. HealthKit: physicalEffort（开发者文档）.",
+          "url": "https://developer.apple.com/documentation/healthkit/hkquantitytypeidentifier/physicaleffort",
+          "finding": "PhysicalEffort 以 MET 为单位记录用力程度，由 Apple Watch 自动估算和记录。",
+          "checked": "official"
+        },
+        {
+          "cite": "Herrmann SD 等. 2024 Adult Compendium of Physical Activities: A third update of the energy costs of human activities. Journal of Sport and Health Science, 2024.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38242596/",
+          "finding": "2024 年成人身体活动纲要：1,114 种活动的 MET 值，其中 912 种来自间接测热法的实测，用来统一不同研究对活动强度的换算。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Arem H 等. Leisure time physical activity and mortality: a detailed pooled analysis of the dose-response relationship. JAMA Internal Medicine, 2015.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/25844730/",
+          "finding": "6 个队列、66 万人：和不运动相比，达到推荐量 1 到 2 倍的人死亡风险低 31%，2 到 3 倍低 37%，3 到 5 倍低 39%，获益在这里基本到顶；10 倍以上也没有发现害处。",
+          "checked": "abstract"
+        },
+        {
           "cite": "Apple. Close Your Rings.",
           "url": "https://www.apple.com/watch/close-your-rings/",
           "finding": "“锻炼”圆环统计强度达到或超过快走的活动分钟数。",
           "checked": "official"
+        }
+      ]
+    },
+    {
+      "id": "activity_pattern",
+      "group": "activity",
+      "name": "活动的分布：集中练和生活里的片段",
+      "range": "没有好坏之分，不打分。每周达到 150 分钟时，集中在一两天练完和分散到每天，获益相近；抽不出整段时间时，生活里 1 到 2 分钟的高强度片段也有益。",
+      "method": "集中练：这 7 天的中高强度分钟（按上一条的等量算法）达到 150，并且一半以上来自其中最多的两天。高强度片段：不在训练记录里、持续 1 到 3 分钟、强度在 6 MET 及以上的连续时段，中间断开不超过 1 分钟的算同一段。",
+      "params": {
+        "top_days": 2,
+        "top_share": 0.5,
+        "burst_minutes": [
+          1,
+          3
+        ],
+        "burst_gap_sec": 60,
+        "bursts_per_day": 3
+      },
+      "grade": "B",
+      "grade_note": "两项英国生物样本库的大型队列研究，用腕部加速度计测量，参与者平均 60 岁出头，属于观察性研究。这里用手表的 MET 估算去找同样的模式，口径不完全相同，所以只用来让人放心、给一个容易做到的办法，不打分。",
+      "caveats": [
+        "“高强度片段”是按手表的估算找出来的，可能漏算，也可能多算。",
+        "研究里的片段每次 1 到 2 分钟；这里放宽到 3 分钟，因为手表的记录有时会把相邻的两段连在一起。"
+      ],
+      "sources": [
+        {
+          "cite": "Khurshid S 等. Accelerometer-Derived \"Weekend Warrior\" Physical Activity and Incident Cardiovascular Disease. JAMA, 2023.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/37462704/",
+          "finding": "近 9 万人、平均 62 岁：每周中高强度达到 150 分钟的人里，一半以上集中在 1 到 2 天完成的“周末战士”和分散完成的人相比，房颤、心梗、心衰、中风的风险降低幅度相近（例如心衰的风险比 0.62 对 0.64）。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Stamatakis E 等. Association of wearable device-measured vigorous intermittent lifestyle physical activity with mortality. Nature Medicine, 2022.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/36482104/",
+          "finding": "25,241 名平时不锻炼的人、平均 61.8 岁、随访约 7 年：每天约 3 次、每次 1 到 2 分钟的生活中高强度活动，和全因死亡风险低 38% 到 40%、心血管死亡风险低 48% 到 49% 相关。",
+          "checked": "abstract"
         }
       ]
     },
@@ -656,6 +754,230 @@
           "url": "https://pubmed.ncbi.nlm.nih.gov/33239350/",
           "finding": "没达到推荐量的人，可以从少量活动开始，逐步增加频率、强度和时长。",
           "checked": "fulltext"
+        }
+      ]
+    },
+    {
+      "id": "vo2max_peers",
+      "group": "fitness",
+      "name": "最大摄氧量的同龄参照",
+      "range": "按年龄段和性别，看在参照人群里大概处在第几百分位，以及比同龄中位数高或低多少。Apple 健康 App 把 20 到 59 岁同龄同性别最低的五分之一定为“低”；60 岁及以上，男性低于 18、女性低于 15 算低。",
+      "method": "取最近一次读数之前 30 天内全部读数的平均，按你的年龄段（每 10 岁一段，20 到 79 岁；80 岁以上按 70 多岁算）和性别，在 FRIEND 2015 跑步机测试的百分位表里按相邻两档线性插值。表里只有第 5 到第 95 百分位，超出的只说“低于第 5”或“高于第 95”。最近一次读数在半年以前的，不再给位置。和中位数的差距按 1 MET = 3.5 ml/kg·min 换算。年龄和性别取自健康 App 里的个人资料，未满 20 岁或没填性别时不比较。",
+      "params": {
+        "window_days": 30,
+        "stale_days": 180,
+        "min_age": 20,
+        "percentiles": [
+          5,
+          10,
+          25,
+          50,
+          75,
+          90,
+          95
+        ],
+        "table": {
+          "male": [
+            [
+              20,
+              [
+                29.0,
+                32.1,
+                40.1,
+                48.0,
+                55.2,
+                61.8,
+                66.3
+              ]
+            ],
+            [
+              30,
+              [
+                27.2,
+                30.2,
+                35.9,
+                42.4,
+                49.2,
+                56.5,
+                59.8
+              ]
+            ],
+            [
+              40,
+              [
+                24.2,
+                26.8,
+                31.9,
+                37.8,
+                45.0,
+                52.1,
+                55.6
+              ]
+            ],
+            [
+              50,
+              [
+                20.9,
+                22.8,
+                27.1,
+                32.6,
+                39.7,
+                45.6,
+                50.7
+              ]
+            ],
+            [
+              60,
+              [
+                17.4,
+                19.8,
+                23.7,
+                28.2,
+                34.5,
+                40.3,
+                43.0
+              ]
+            ],
+            [
+              70,
+              [
+                16.3,
+                17.1,
+                20.4,
+                24.4,
+                30.4,
+                36.6,
+                39.7
+              ]
+            ]
+          ],
+          "female": [
+            [
+              20,
+              [
+                21.7,
+                23.9,
+                30.5,
+                37.6,
+                44.7,
+                51.3,
+                56.0
+              ]
+            ],
+            [
+              30,
+              [
+                19.0,
+                20.9,
+                25.3,
+                30.2,
+                36.1,
+                41.4,
+                45.8
+              ]
+            ],
+            [
+              40,
+              [
+                17.0,
+                18.8,
+                22.1,
+                26.7,
+                32.4,
+                38.4,
+                41.7
+              ]
+            ],
+            [
+              50,
+              [
+                16.0,
+                17.3,
+                19.9,
+                23.4,
+                27.6,
+                32.0,
+                35.9
+              ]
+            ],
+            [
+              60,
+              [
+                13.4,
+                14.6,
+                17.2,
+                20.0,
+                23.8,
+                27.0,
+                29.4
+              ]
+            ],
+            [
+              70,
+              [
+                13.1,
+                13.6,
+                15.6,
+                18.3,
+                20.8,
+                23.1,
+                24.1
+              ]
+            ]
+          ]
+        },
+        "low_percentile": 20,
+        "low_from_age": 60,
+        "low_abs": {
+          "male": 18,
+          "female": 15
+        },
+        "met": 3.5,
+        "device_error_sd": 4.7
+      },
+      "grade": "B",
+      "grade_note": "参照表来自美国 8 个实验室 7,783 次直接测量的最大运动测试（FRIEND 2015），参与者没有心血管疾病。Apple 健康 App 的心肺适能分级也以它为准（据 Apple 2021 年的白皮书）。2022 年的更新版扩大了样本，跑步机的参照值低了 1.5 到 4.6，按新版算，位置会更靠前。手表给的是估算值。",
+      "caveats": [
+        "手表的估算和实验室测量有出入：Apple 自己的验证（221 人）里平均高 1.4、标准差 4.7（以次极量测试推算的值为参照）；一项 30 人的独立研究以最大运动测试为准，发现手表平均低 6.1。所以百分位只看大概位置，相差一两档不必在意。",
+        "只有户外步行、跑步、徒步之后才会更新。背着重物、在沙地上走、天气很热、脱水或喝了咖啡，读数会偏低；服用限制心率的药物（如 β 受体阻滞剂）而没在健康 App 里注明，读数会偏高。",
+        "和同龄人比只是参照，和自己过去比更有意义。按 Apple 白皮书引用的研究，6 到 12 周的训练计划通常能让 VO₂max 提高 5% 到 10%。"
+      ],
+      "sources": [
+        {
+          "cite": "Kaminsky LA 等. Reference Standards for Cardiorespiratory Fitness Measured With Cardiopulmonary Exercise Testing: Data From the Fitness Registry and the Importance of Exercise National Database. Mayo Clinic Proceedings, 2015.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/26455884/",
+          "finding": "美国 8 个实验室、7,783 次跑步机最大运动测试（20 到 79 岁、没有心血管疾病）的最大摄氧量百分位表：20 到 29 岁男性、女性的中位数分别是 48.0 和 37.6 ml/kg·min，70 到 79 岁降到 24.4 和 18.3，大约每 10 年下降 10%。",
+          "checked": "fulltext"
+        },
+        {
+          "cite": "Kaminsky LA 等. Updated Reference Standards for Cardiorespiratory Fitness Measured with Cardiopulmonary Exercise Testing: Data from the Fitness Registry and the Importance of Exercise National Database (FRIEND). Mayo Clinic Proceedings, 2022.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/34809986/",
+          "finding": "更新版 FRIEND 参照（34 个实验室、22,379 次测试、20 到 89 岁）：跑步机的参照值比 2015 版低 1.5 到 4.6 ml/kg·min；中位数每 10 年平均下降 13.5%（约 4.0 ml/kg·min）。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Apple. Using Apple Watch to Estimate Cardio Fitness with VO2 max（白皮书）, 2021.",
+          "url": "https://www.apple.com/healthcare/docs/site/Using_Apple_Watch_to_Estimate_Cardio_Fitness_with_VO2_max.pdf",
+          "finding": "Apple Watch 根据户外步行、跑步、徒步时的心率反应估算 VO₂max（范围 14 到 60）。221 人的验证集中，和次极量测试推算的值相比平均误差 1.4 ± 4.7 ml/kg·min，重测一致性 ICC 0.86。20 到 59 岁的“低心肺适能”提醒以 FRIEND 同龄同性别最低的五分之一为界，60 岁及以上男性 18、女性 15。",
+          "checked": "fulltext"
+        },
+        {
+          "cite": "Lambe R 等. Investigating the accuracy of Apple Watch VO2 max measurements: A validation study. PLOS ONE, 2025.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/40373042/",
+          "finding": "30 人与间接测热法的最大运动测试比较：Apple Watch 平均低估 6.07 ml/kg·min（95% 置信区间 3.77–8.38），平均绝对百分比误差 13.31%。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Kodama S 等. Cardiorespiratory fitness as a quantitative predictor of all-cause mortality and cardiovascular events in healthy men and women: a meta-analysis. JAMA, 2009.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/19454641/",
+          "finding": "33 项研究的荟萃分析（全因死亡部分约 10 万人）：最大有氧能力每高 1 MET，全因死亡风险低 13%，冠心病和心血管事件风险低 15%。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Ross R 等. Importance of Assessing Cardiorespiratory Fitness in Clinical Practice: A Case for Fitness as a Clinical Vital Sign: A Scientific Statement From the American Heart Association. Circulation, 2016.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/27881567/",
+          "finding": "美国心脏协会科学声明：心肺适能低与心血管病、全因死亡风险高相关，预测力可能强于吸烟、高血压、高胆固醇和 2 型糖尿病等传统危险因素，建议在临床上把它当作一项生命体征来评估。",
+          "checked": "abstract"
         }
       ]
     },
@@ -1018,6 +1340,125 @@
           "url": "https://www.who.int/news-room/fact-sheets/detail/deafness-and-hearing-loss",
           "finding": "双耳听阈都在 20 dB 或更好算听力正常；听力损失分为轻度、中度、中重度、重度和极重度。全球超过 10 亿年轻人因为不安全的收听习惯，面临可以避免的永久性听力损失风险。",
           "checked": "official"
+        }
+      ]
+    },
+    {
+      "id": "noise_band",
+      "group": "method",
+      "name": "这算真的变化吗",
+      "range": "两个数之间的差别落在你自己的日常起伏之内，就显示为“持平”，不标涨跌。",
+      "method": "先算每项指标的“典型误差”：最近一年里，相邻两次读数之差的标准差 ÷ √2（至少 20 对）。每天都有的指标取相邻两天；体重、体脂这类不是每天都量的，两次相隔不超过 2 天才配对，VO₂max 不超过 14 天。两个单独的读数（比如两次称重）要差 1.96 × √2 × 典型误差以上，两段时间的平均值要差 1.96 × 典型误差 × √(1/n₁ + 1/n₂) 以上（n₁、n₂ 是两段里有数据的天数），才算超出日常起伏。VO₂max 的读数太少、配不够对时，用 Apple 验证里同一个人多次读数的标准差中位数 1.2 ml/kg·min 代替。周报的分数，看这一期和上一期的差，是否超过此前 12 期里相邻两期之差的 1.96 个标准差（至少 6 对）。",
+      "params": {
+        "z": 1.96,
+        "history_days": 365,
+        "min_pairs": 20,
+        "max_gap_days": {
+          "default": 1,
+          "weight": 2,
+          "bodyFat": 2,
+          "lean": 2,
+          "bmi": 2,
+          "fatMass": 2,
+          "vo2max": 14,
+          "sixMin": 14,
+          "steadiness": 14
+        },
+        "score_weeks": 12,
+        "min_score_weeks": 6,
+        "fallback_te": {
+          "vo2max": 1.2
+        }
+      },
+      "grade": "B",
+      "grade_note": "典型误差是运动医学里衡量测量误差的标准方法。这里把相邻两次读数的差别都算作噪声，其中也包含真实的日常起伏，所以这条线偏宽：它回答的是“有没有超出你平时的起伏”，不是“仪器准不准”。",
+      "caveats": [
+        "“持平”不等于完全没变，只是还分不清是真变化还是平时的起伏。",
+        "体重有星期节律：周末之后偏重、工作日慢慢回落，研究认为这是正常的，不是长胖。",
+        "连着几天一起偏高或偏低（比如生病那几天）时，相邻两天很像，典型误差会偏小，判断会偏敏感一些。"
+      ],
+      "sources": [
+        {
+          "cite": "Hopkins WG. Measures of reliability in sports medicine and science. Sports Medicine, 2000.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/10907753/",
+          "finding": "综述：衡量测量可靠性最好用“典型误差”，也就是同一个人反复测量的标准差；它的用途之一，是在监测个人时判断一次变化是否超出了测量本身的波动。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Orsama AL 等. Weight rhythms: weight increases during weekends and decreases during weekdays. Obesity Facts, 2014.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/24504358/",
+          "finding": "80 名成年人、4,657 次每日称重：体重在周末升高、工作日回落。作者认为周末和工作日之间的这种起伏应当看作正常现象，而不是长胖的信号。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Apple. Using Apple Watch to Estimate Cardio Fitness with VO2 max（白皮书）, 2021.",
+          "url": "https://www.apple.com/healthcare/docs/site/Using_Apple_Watch_to_Estimate_Cardio_Fitness_with_VO2_max.pdf",
+          "finding": "验证集里，同一个人多次 VO₂max 读数的标准差中位数为 1.2 ml/kg·min（3.4%），第 90 百分位为 2.6（7.2%）。",
+          "checked": "fulltext"
+        }
+      ]
+    },
+    {
+      "id": "own_comparisons",
+      "group": "method",
+      "name": "你自己的对照",
+      "range": "两组夜晚的差别给出 95% 区间：区间跨过 0，就说“还看不出差别”。同时比较很多项时，再做一次错误发现率校正，挡掉碰巧的结果。",
+      "method": "以夜晚为单位：把有某种情况的夜晚和没有的夜晚分成两组，比较那一晚的入睡时间、睡眠时长、睡眠心率和睡眠 HRV 的平均值。现在比较的是：前一天 18 点以后结束了训练（对照：前一天没有训练记录）；入睡前 1 小时内在用耳机（对照：没有用，只看有耳机记录以后的夜晚）；白天日照最多的三分之一（对照：最少的三分之一）；你在标注里写过的每一种标签，至少 8 天（看标注那天的晚上；对照：前一天没有任何标注的夜晚）。周末（醒来那天是周六或周日）和工作日分开比较，再按两组晚数加权合并，减少作息差别的干扰。耳机这一组是按“入睡前”来分的，入睡早晚本身就会影响分到哪一组，所以不比较入睡时间，并且再按入睡早晚（以你的中位数为界）分开比较。区间用自助法重抽样 2,000 次计算，每组至少 8 晚才比较。所有比较放在一起做 Benjamini–Hochberg 校正（错误发现率 10%）：区间不跨过 0 并且通过校正的，说“看得出差别”；区间不跨过 0 但没通过校正的，说“可能有差别，还要更多晚上确认”。",
+      "params": {
+        "min_nights": 8,
+        "min_per_stratum": 3,
+        "resamples": 2000,
+        "level": 0.95,
+        "fdr": 0.1,
+        "seed": 7,
+        "evening_from_min": 1080,
+        "listen_window_min": 60,
+        "daylight_share": 0.3333,
+        "max_bedtime_min": 600
+      },
+      "grade": "C",
+      "grade_note": "统计方法本身是通用的，但这是你自己的观察数据，不是随机对照试验：看得出差别，也不能说明就是这个原因造成的，可能是同时发生的别的事（比如训练的日子本来就睡得晚）。研究给出的方向只用来决定比较什么。",
+      "caveats": [
+        "把每晚当成互相独立的样本；相邻几晚其实会互相影响，所以区间可能偏窄。",
+        "晚数少的时候区间很宽，最常见的结果是“还看不出差别”，这正是它该说的。",
+        "傍晚训练整体上不影响睡眠；研究提示可能有影响的，是睡前 1 小时内结束的高强度训练。"
+      ],
+      "sources": [
+        {
+          "cite": "Stutz J 等. Effects of Evening Exercise on Sleep in Healthy Participants: A Systematic Review and Meta-Analysis. Sports Medicine, 2019.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/30374942/",
+          "finding": "23 项研究的荟萃分析：和不运动相比，傍晚运动没有让睡眠变差，反而略有改善；但睡前 1 小时内结束的高强度运动，可能让入睡变慢、睡眠时长和效率下降。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Scullin MK 等. Bedtime Music, Involuntary Musical Imagery, and Sleep. Psychological Science, 2021.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/34105416/",
+          "finding": "199 人的问卷和 50 人的睡眠实验：常听音乐的人夜里更容易出现脑内循环的旋律（“耳虫”），和睡眠质量变差有关；睡前听纯音乐版流行歌的那一组，夜间耳虫更多，多导睡眠图测得的睡眠质量更差。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Jespersen KV 等. Listening to music for insomnia in adults. Cochrane Database of Systematic Reviews, 2022.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/36000763/",
+          "finding": "13 项随机对照试验、1,007 名有失眠困扰的成人：每天听 25 到 60 分钟音乐，主观睡眠质量改善（匹兹堡睡眠质量指数平均低 2.79 分，中等确定性）；用仪器测的入睡时间、睡眠时长没有看到改善。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Pietilä J 等. Acute Effect of Alcohol Intake on Cardiovascular Autonomic Regulation During the First Hours of Sleep in a Large Real-World Sample of Finnish Employees: Observational Study. JMIR Mental Health, 2018.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/29549064/",
+          "finding": "4,098 名芬兰职员，每人都有饮酒和不饮酒的日子：饮酒后入睡头 3 小时心率升高、HRV 下降，和饮酒量成正比；按 HRV 估算的恢复程度在少量、中量、大量饮酒后平均下降 9.3、24.0 和 39.2 个百分点。",
+          "checked": "fulltext"
+        },
+        {
+          "cite": "Wright KP 等. Entrainment of the human circadian clock to the natural light-dark cycle. Current Biology, 2013.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/23910656/",
+          "finding": "在电灯环境里，人白天晒到的阳光少、日落后接触的光多，生物钟偏晚；只接触自然光一周后，生物钟和日出日落同步，晚睡型的人提前得更多。",
+          "checked": "abstract"
+        },
+        {
+          "cite": "Benjamini Y, Hochberg Y. Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing. Journal of the Royal Statistical Society: Series B, 1995.",
+          "url": "https://doi.org/10.1111/j.2517-6161.1995.tb02031.x",
+          "finding": "提出控制“错误发现率”的逐步校正方法：在所有被判为有差别的结果里，把碰巧的比例控制在设定的水平以下，适合同时做很多项比较。",
+          "checked": "secondary"
         }
       ]
     }

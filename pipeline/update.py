@@ -20,9 +20,13 @@ from hk.analysis import build_analysis, series_info                   # noqa: E4
 from hk.annotations import read_annotations                           # noqa: E402
 from hk.audio import build_audio                                      # noqa: E402
 from hk.backtest import annotation_check, sensitivity                 # noqa: E402
+from hk.contrasts import build_contrasts                              # noqa: E402
 from hk.daily import (daily_stat, daily_sum, dominant_source, heart_rate_daily,  # noqa: E402
                       heart_rate_minutes, hourly_sum, resolve_overlaps, source_rank, source_runs)
 from hk.extras import build_ecgs, build_workouts                      # noqa: E402
+from hk.fitness import vo2_peers                                      # noqa: E402
+from hk.intensity import intensity_daily                              # noqa: E402
+from hk.noise import noise_table                                      # noqa: E402
 from hk.parse import export_offset, parse_export, parse_ts            # noqa: E402
 from hk.reference import load_reference, params_by_id                 # noqa: E402
 from hk.report import build_reports                                   # noqa: E402
@@ -80,7 +84,7 @@ SLEEP_DECIMALS = {"sleepTotal": 2, "sleepDeep": 2, "sleepCore": 2, "sleepRem": 2
 # All-day totals that are incomplete on the day the export was made.
 PARTIAL_KEYS = ("steps", "distance", "cycling", "activeKcal", "basalKcal", "totalKcal", "flights",
                 "exerciseMin", "standHours", "daylight", "water", "hrMin", "hrMax", "hrAvg", "wear",
-                "listenMin", "hpDose", "hpDose7")
+                "listenMin", "hpDose", "hpDose7", "modMin", "vigMin", "effortCover", "vigBursts")
 
 
 def say(msg: str) -> None:
@@ -292,6 +296,13 @@ def main() -> None:
     workouts = build_workouts(store, tl, day0, ndays)
     ecgs = build_ecgs(src, tl, day0)
 
+    say("活动强度…")
+    pa, pp = ref_params["activity_minutes"], ref_params["activity_pattern"]
+    daily.update(intensity_daily(
+        q.get("PhysicalEffort", []), tl, day0, ndays, rank, moderate=pa["moderate_met"], vigorous=pa["vigorous_met"],
+        workouts=[(w["start"], w["end"]) for w in store.workouts], burst=pp["burst_minutes"], gap=pp["burst_gap_sec"],
+        min_cover=pa["min_wear_percent"] / 100))
+
     say("耳机与听力…")
     audio = build_audio(store, tl, day0, ndays, ref_params)
     daily.update(audio.pop("daily"))
@@ -312,6 +323,7 @@ def main() -> None:
                               params=ref_params, sleep_need=sleep_need)
     for w, (load, estimated) in zip(workouts, analysis.pop("workoutLoad")):
         w["load"], w["loadEst"] = load, estimated
+    noise = noise_table(days, daily, ref_params["noise_band"])
     reports = build_reports(days=days, daily=daily, analysis=analysis["daily"], workouts=workouts,
                             params=ref_params, scores=reference["scores"], partial_day=partial, ecgs=ecgs,
                             names={ind["id"]: ind["name"] for ind in reference["indicators"]})
@@ -319,6 +331,8 @@ def main() -> None:
     backtest = sensitivity(days=days, daily=daily, analysis=analysis["daily"], workouts=workouts,
                            params=ref_params, scores=reference["scores"], sleep_need=sleep_need)
     backtest["annotations"] = annotation_check(annotations, analysis["daily"], ref_params)
+    contrasts = build_contrasts(days=days, daily=daily, workouts=workouts, sessions=audio["sessions"],
+                                annotations=annotations, params=ref_params)
 
     # --- checks -------------------------------------------------------------------------
     checks: dict = {}
@@ -346,6 +360,7 @@ def main() -> None:
     heights = sorted(q.get("Height", []))
     sex = {"HKBiologicalSexMale": "male", "HKBiologicalSexFemale": "female"}.get(
         me.get("HKCharacteristicTypeIdentifierBiologicalSex", ""))
+    fitness = vo2_peers(days=days, vo2=daily["vo2max"], profile={"age": age, "sex": sex}, params=ref_params)
 
     inventory = []
     for full, inv in sorted(store.inventory.items(), key=lambda kv: -kv[1]["n"]):
@@ -391,6 +406,9 @@ def main() -> None:
         "reports": reports,
         "backtest": backtest,
         "annotations": annotations,
+        "noise": noise,
+        "insights": {"contrasts": contrasts},
+        "fitness": fitness,
         "reference": reference,
     }
     out_dir = ROOT / "dashboard"
@@ -427,6 +445,12 @@ def main() -> None:
         say(f"  步数：直接相加 {c['rawTotal']:,} 步，去重后 {c['dedupTotal']:,} 步（去掉重复计数 {c['removedPct']}%）")
     say(f"  分析：{len(analysis['daily'])} 项逐日指标，睡眠需求按每晚 {sleep_need:g} 小时"
         + (f"；{len(annotations)} 天有标注" if annotations else ""))
+    if analysis["hrRuns"]:
+        say(f"  睡眠心率连续偏高：{len(analysis['hrRuns'])} 次，最近一次结束于 {days[analysis['hrRuns'][-1]['end']]}")
+    if fitness and fitness.get("pct") is not None:
+        say(f"  VO₂max：近 30 天平均 {fitness['value']:g}，在同龄同性别的参照里约第 {fitness['pct']} 百分位")
+    shown = sum(1 for it in contrasts["items"] for r in it["rows"] if r["verdict"] in ("clear", "maybe"))
+    say(f"  你自己的对照：{len(contrasts['items'])} 组" + (f"，{shown} 项看得出或可能有差别" if shown else "，暂时都还看不出差别"))
     if audio["devices"]:
         hours = sum(x["minutes"] for x in audio["devices"]) / 60
         dose7 = next((v for v in reversed(daily["hpDose7"]) if v is not None), None)

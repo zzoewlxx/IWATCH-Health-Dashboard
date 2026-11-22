@@ -23,13 +23,14 @@
 
   // ------------------------------------------------------------------ single-metric trend
   /**
-   * spec: { key, name, unit, dec, form:'line'|'bar', roll, minN, zero, band:[lo,hi,label],
+   * spec: { key, values, name, unit, dec, form:'line'|'bar', roll, minN, zero, band:[lo,hi,label],
    *         goalKey, fmt, axisFmt, eras, sparse, yMin, yMax, right }
+   * `values` (optional) is a per-day array to plot instead of the daily series `key`.
    * Daily view: every day as a quiet context mark + a 7-day mean as the emphasis line.
    * Weekly / monthly view: the bucket mean.
    */
   HD.trend = (spec) => (ctx) => {
-    const T = ctx.T, arr = D[spec.key];
+    const T = ctx.T, arr = spec.values || D[spec.key];
     if (!arr) return { empty: true };
     const fmt = spec.fmt || ((v) => num(v, spec.dec || 0));
     const unit = spec.unit ? ' ' + spec.unit : '';
@@ -40,7 +41,10 @@
 
     if (ctx.gran === 'day') {
       main = ctx.bk.map((b) => arr[b.i0]);
-      if (win) roll = ctx.bk.map((b) => rolling(spec.key, win, spec.minN || (spec.sparse ? 1 : 3))[b.i0]);
+      if (win) {
+        const smooth = rolling(spec.values || spec.key, win, spec.minN || (spec.sparse ? 1 : 3));
+        roll = ctx.bk.map((b) => smooth[b.i0]);
+      }
     } else {
       main = aggMean(arr, ctx.bk);
     }
@@ -556,6 +560,101 @@
       }],
     });
     return { option, table: { cols: ['星期', '平均' + spec.name, '天数'], rows: WEEKDAY.map((w, k) => [w, data[k] == null ? '–' : fmt(data[k]), n[k]]) } };
+  };
+
+  // ------------------------------------------------------------------ sleeping heart rate against its usual level
+  const AN = (H.analysis || {}).daily || {};
+  const HR_RULE = (((H.reference || {}).indicators || []).find((x) => x.id === 'night_hr_rise') || {}).params || { rise_bpm: 4, min_nights: 2 };
+  /** each night above (or below) the median of the nights before it; nights in a run of high ones stand out */
+  HD.nightHrRise = (ctx) => {
+    const T = ctx.T, a = ctx.a, b = ctx.b, rise = AN.hrRise, run = AN.hrRun;
+    if (!rise || !rise.slice(a, b + 1).some((v) => v != null)) return { empty: true };
+    const inRun = new Set(((H.analysis || {}).hrRuns || []).flatMap((e) => e.members));
+    const labels = DAYS.slice(a, b + 1);
+    const c = { T, a, b };
+    const kind = (d) => (rise[d] == null ? null : inRun.has(d) ? 'run' : rise[d] >= HR_RULE.rise_bpm ? 'one' : 'ok');
+    const color = { run: T.s[0], one: T.soft, ok: T.n2 };
+    const data = labels.map((_, k) => {
+      const d = a + k, v = rise[d];
+      return v == null ? null : { value: v, itemStyle: { color: color[kind(d)], borderRadius: v >= 0 ? [2, 2, 0, 0] : [0, 0, 2, 2] } };
+    });
+    const word = { run: '连续偏高', one: '只偏高这一晚', ok: '和平时差不多' };
+    const option = Object.assign(baseOption(c, { right: 12 }), {
+      xAxis: xAxis(labels, c, true),
+      yAxis: yAxis(c, { fmt: (v) => (v > 0 ? '+' : '') + v }),
+      tooltip: tooltip(c, (i) => {
+        const d = a + i;
+        if (rise[d] == null) return '';
+        return ttDom(labels[i] + ' ' + WEEKDAY[DOW[d]], [
+          { name: '睡眠心率', value: D.sleepHr[d] == null ? null : num(D.sleepHr[d], 1) + ' 次/分', color: color[kind(d)], box: true },
+          { name: '平时（此前各晚的中位数）', value: AN.hrBase[d] == null ? null : num(AN.hrBase[d], 1) + ' 次/分' },
+          { name: '差', value: HD.signed(rise[d], 1) + ' 次/分' },
+        ], run[d] >= 2 ? `连续第 ${run[d]} 晚偏高` : word[kind(d)]);
+      }, { shadow: true }),
+      series: [{
+        type: 'bar', data, barMaxWidth: 10, barMinWidth: 1, emphasis: { disabled: true },
+        markLine: {
+          silent: true, symbol: 'none', animation: false, lineStyle: { color: T.muted, width: 1, type: 'dashed' },
+          label: { position: 'insideEndTop', color: T.muted, fontSize: 10, formatter: `高出 ${HR_RULE.rise_bpm} 次/分` },
+          data: [{ yAxis: HR_RULE.rise_bpm }],
+        },
+      }],
+    });
+    const rows = [];
+    for (let d = b; d >= a; d--) {
+      if (rise[d] == null) continue;
+      rows.push([DAYS[d], num(D.sleepHr[d], 1), num(AN.hrBase[d], 1), HD.signed(rise[d], 1), run[d] >= 2 ? `连续第 ${run[d]} 晚` : word[kind(d)]]);
+    }
+    return {
+      option, drill: true,
+      legend: [{ name: `连续 ${HR_RULE.min_nights} 晚以上偏高`, color: T.s[0] }, { name: '只偏高一晚', color: T.soft }, { name: '其他夜晚', color: T.n2 }],
+      table: { cols: ['日期', '睡眠心率', '平时', '差（次/分）', ''], rows },
+    };
+  };
+
+  // ------------------------------------------------------------------ weekly rhythm of a reading
+  /** spec: { key, name, unit, dec } — how far each weekday sits from the days around it (noise.py), with 95% bars */
+  HD.weekdayRhythm = (spec) => (ctx) => {
+    const T = ctx.T, rows = (((H.noise || {}).weekday || {})[spec.key]);
+    if (!rows) return { empty: true };
+    const dec = spec.dec == null ? 2 : spec.dec, unit = spec.unit ? ' ' + spec.unit : '';
+    const mean = rows.map((r) => r[0]), se = rows.map((r) => r[1]);
+    const c2 = Object.assign({}, ctx, { a: 0, b: 0 });
+    const fmt = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + num(Math.abs(v), dec) + unit;
+    const option = Object.assign(baseOption(ctx, { right: 12, top: 18 }), {
+      xAxis: Object.assign(xAxis(WEEKDAY, c2, true), { axisLabel: { color: T.muted, fontSize: 11 } }),
+      yAxis: yAxis(ctx, { fmt: (v) => (v > 0 ? '+' : '') + v }),
+      tooltip: tooltip(ctx, (i) => ttDom(WEEKDAY[i], [
+        { name: '比前后几天的平均', value: mean[i] == null ? null : fmt(mean[i]), color: T.s[0], box: true },
+        { name: '95% 范围', value: mean[i] == null ? null : fmt(mean[i] - 1.96 * se[i]) + ' 到 ' + fmt(mean[i] + 1.96 * se[i]) },
+      ], rows[i][2] + ' 次称重'), { shadow: true }),
+      series: [
+        { type: 'bar', data: mean, barMaxWidth: 26, itemStyle: { color: T.s[0], borderRadius: 2 }, emphasis: { disabled: true } },
+        {
+          type: 'custom', silent: true, tooltip: { show: false }, z: 5, encode: { x: 0, y: [1, 2] },   // the axis spans the whiskers
+          data: mean.map((m, i) => (m == null ? [i, null, null] : [i, m - 1.96 * se[i], m + 1.96 * se[i]])),
+          renderItem: (params, api) => {
+            if (api.value(1) == null || Number.isNaN(api.value(1))) return null;
+            const lo = api.coord([api.value(0), api.value(1)]), hi = api.coord([api.value(0), api.value(2)]);
+            const w = 5, style = { stroke: T.ink2, lineWidth: 1.2 };
+            return { type: 'group', children: [
+              { type: 'line', shape: { x1: lo[0], y1: lo[1], x2: hi[0], y2: hi[1] }, style },
+              { type: 'line', shape: { x1: lo[0] - w, y1: lo[1], x2: lo[0] + w, y2: lo[1] }, style },
+              { type: 'line', shape: { x1: hi[0] - w, y1: hi[1], x2: hi[0] + w, y2: hi[1] }, style },
+            ] };
+          },
+        },
+      ],
+    });
+    // seven weekdays are looked at together: one of them past its 95% bar is no surprise, so the
+    // verdict uses the Bonferroni line for seven comparisons (two-sided 0.05 / 7, z = 2.69)
+    const clear = rows.map((r) => r[0] != null && Math.abs(r[0]) > 2.69 * r[1]);
+    return {
+      option, clear,
+      table: { cols: ['星期', '比前后几天的平均', '95% 范围', '称重次数'],
+        rows: WEEKDAY.map((w, i) => [w, mean[i] == null ? '–' : fmt(mean[i]),
+          mean[i] == null ? '–' : fmt(mean[i] - 1.96 * se[i]) + ' 到 ' + fmt(mean[i] + 1.96 * se[i]), rows[i][2]]) },
+    };
   };
 
   // ------------------------------------------------------------------ ECG strip

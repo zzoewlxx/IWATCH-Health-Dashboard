@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from .analysis import _sd, hr_episodes
 from .audio import energy_mean
 from .screening import screen
 
@@ -90,21 +91,39 @@ def report_days(days: list[str]) -> list[int]:
 # the four sections
 # ---------------------------------------------------------------------------------------
 
+def _get(A: dict[str, list], key: str, i: int):
+    series = A.get(key)
+    return None if series is None else series[i]
+
+
+def _hr_runs(i: int, A: dict[str, list], p: dict) -> list[dict]:
+    """Runs of nights with sleeping heart rate well above usual that end inside the seven
+    days (or are still going on), as known on day i."""
+    run = A.get("hrRun")
+    if not run:
+        return []
+    found = hr_episodes(run, A["hrRise"], A["hrBase"], min_nights=p["min_nights"], max_gap_nights=p["max_gap_nights"],
+                        upto=i)
+    return [e for e in found if e["end"] >= i - 6]
+
+
 def _recovery(i: int, A: dict[str, list], P: dict) -> dict:
     band, high, need = P["hrv_night"]["band_sd"], P["rhr"]["high_sd"], P["night_vitals"]["min_outliers"]
     signals = P["night_vitals"]["signals"]
     steady = evaluated = high_days = 0
     nights = []
+    runs = _hr_runs(i, A, P["night_hr_rise"])
+    in_run = {m for e in runs for m in e["members"]}
     for j in range(i - 6, i + 1):
         z, rz, out = A["hrvZ"][j], A["rhrZ"][j], A["vitalsOut"][j]
-        if z is None and rz is None and out is None:
+        if z is None and rz is None and out is None and _get(A, "hrRun", j) is None:
             continue
         evaluated += 1
         low = z is not None and z < -band
         up = rz is not None and rz >= high
         flagged = out is not None and out >= need
         high_days += up
-        steady += not (low or up or flagged)
+        steady += not (low or up or flagged or j in in_run)
         if flagged:
             off = []
             for key, spec in signals.items():
@@ -121,7 +140,8 @@ def _recovery(i: int, A: dict[str, list], P: dict) -> dict:
     rz = A["rhrZ"][i]
     if evaluated < 4:
         state = "none"
-    elif run >= P["hrv_night"]["low_run_days"] or (rz is not None and rz >= high) or len(nights) >= 2:
+    elif (run >= P["hrv_night"]["low_run_days"] or (rz is not None and rz >= high) or len(nights) >= 2
+          or any(e["ongoing"] for e in runs)):
         state = "low"
     elif steady < evaluated:
         state = "mixed"
@@ -129,7 +149,7 @@ def _recovery(i: int, A: dict[str, list], P: dict) -> dict:
         state = "steady"
     return {
         "state": state, "label": RECOVERY_WORDS[state],
-        "steady": steady, "days": evaluated, "lowRun": run, "highDays": high_days, "nights": nights,
+        "steady": steady, "days": evaluated, "lowRun": run, "highDays": high_days, "nights": nights, "hrRuns": runs,
         "hrv7": A["hrv7"][i], "hrvBase": A["hrvBase"][i], "hrvLo": A["hrvLo"][i], "hrvHi": A["hrvHi"][i],
         "rhr7": A["rhr7"][i], "rhrBase": A["rhrBase"][i], "rhrHi": A["rhrHi"][i], "rhrZ": rz,
     }
@@ -154,9 +174,22 @@ def _sleep(i: int, daily: dict[str, list], A: dict[str, list], S: dict) -> dict:
     return out
 
 
-def _activity(i: int, A: dict[str, list], S: dict) -> dict:
-    out = score(S["activity"], {"steps": A["steps7"][i], "exercise": A["exercise7"][i], "strength": A["strengthDays7"][i]})
-    out.update({"steps": A["steps7"][i], "exercise": A["exercise7"][i], "strength": A["strengthDays7"][i]})
+def _activity(i: int, A: dict[str, list], S: dict, P: dict) -> dict:
+    """Steps, active minutes and strength days. Active minutes come from the watch's METs
+    (moderate + 2 x vigorous) where it records them, else from Apple's exercise minutes."""
+    mvpa, apple = _get(A, "mvpa7", i), A["exercise7"][i]
+    minutes = mvpa if mvpa is not None else apple
+    out = score(S["activity"], {"steps": A["steps7"][i], "exercise": minutes, "strength": A["strengthDays7"][i]})
+    top = _get(A, "topShare7", i)
+    out.update({
+        "steps": A["steps7"][i], "exercise": minutes, "strength": A["strengthDays7"][i],
+        "source": "effort" if mvpa is not None else "exercise" if apple is not None else None,
+        "appleExercise": apple, "moderate": _get(A, "mod7", i), "vigorous": _get(A, "vig7", i),
+        "bursts": _get(A, "bursts7", i), "topShare": top,
+        # "weekend warrior": the week's target met, more than half of it on its two busiest days
+        "concentrated": (mvpa is not None and mvpa >= P["activity_minutes"]["moderate_min"][0] and top is not None
+                         and top >= P["activity_pattern"]["top_share"]),
+    })
     return out
 
 
@@ -222,6 +255,27 @@ def _tips(days: list[str], rec: dict, slp: dict, act: dict, load: dict, P: dict,
             f"{when}，{'、'.join(seen)}，同时偏离了你平时的范围。生病、饮酒、熬夜、表带松了都可能造成这种变化。"
             "如果那几天确实不舒服，这几天练得轻一些、多休息；知道原因的话，可以记进标注里。",
             ["night_vitals"], quip=f"身体盘面异动 {n} 晚，先别加仓")
+    if rec.get("hrRuns"):
+        hp = P["night_hr_rise"]
+        ep = max(rec["hrRuns"], key=lambda e: (e["ongoing"], e["nights"], e["end"]))
+        n, rise = ep["nights"], hp["rise_bpm"]
+        vitals_too = len({x["d"] for x in rec["nights"]} & set(ep["members"]))
+        also = f"其中 {vitals_too} 晚也有多项夜间体征同时偏离。" if vitals_too else ""
+        why = ("压力、饮酒、练得太猛、作息被打乱都会这样，生病时也会。一项 3,318 人的研究里，"
+               "生病引起的连续偏高平均持续 6 天左右，其他原因大约 3 天半。")
+        if ep["ongoing"]:
+            add("hr_run", 3 if n >= hp["long_nights"] else 2, "睡眠心率", f"睡眠心率连续 {n} 晚比平时高",
+                f"从{day_text(days[ep['start']])}起，睡眠心率已经连续 {n} 晚比你平时（此前各晚的中位数约 {ep['base']:.0f} 次/分）"
+                f"高出 {rise:g} 次/分以上，最多高 {ep['rise']:.0f}。{also}{why}"
+                "这几天先练得轻一些、早点睡，留意身体有没有不舒服；想到原因的话，记进标注里。",
+                ["night_hr_rise"],
+                quip=f"心率夜盘连续高开 {n} 晚，空仓观望几天" if n >= hp["long_nights"] else f"心率夜盘连续高开 {n} 晚，先别加仓")
+        else:
+            add("hr_run", 3 if n >= hp["long_nights"] else 1, "睡眠心率", f"有 {n} 晚睡眠心率比平时高，已经回落",
+                f"{day_text(days[ep['start']])}到{day_text(days[ep['end']])}，睡眠心率连续 {n} 晚比你平时（约 {ep['base']:.0f} 次/分）"
+                f"高出 {rise:g} 次/分以上，最多高 {ep['rise']:.0f}，之后回到了平时的水平。{also}{why}"
+                "想到原因的话，可以记进标注里，以后对照着看。",
+                ["night_hr_rise"], quip="心率夜盘高开后已回落，记一笔复盘")
     if rec["lowRun"] >= P["hrv_night"]["low_run_days"] and rec["hrv7"] is not None:
         add("hrv_low", 2, "恢复", "这几天适合把强度降一档",
             f"夜间 HRV 的 7 日均值已经连续 {rec['lowRun']} 天低于你的平稳带"
@@ -284,10 +338,17 @@ def _tips(days: list[str], rec: dict, slp: dict, act: dict, load: dict, P: dict,
             f"这 7 天日均 {act['steps']:,} 步，低于 {s['low']:,} 步。每天定投一次 15 到 20 分钟的步行，大约能多出 2,000 步。",
             ["steps"], quip="步数跌破均线，每天定投 2,000 步")
     if act["exercise"] is not None and act["exercise"] < a["moderate_min"][0]:
+        if act.get("source") == "effort":
+            facts = (f"这 7 天中等强度约 {act['moderate']} 分钟、高强度约 {act['vigorous']} 分钟，"
+                     f"高强度 1 分钟按 {a['vigorous_weight']:g} 分钟算，合计约 {act['exercise']} 分钟，"
+                     f"建议每周至少 {a['moderate_min'][0]} 分钟。")
+        else:
+            facts = f"这 7 天达到快走以上强度的活动合计约 {act['exercise']} 分钟，建议每周至少 {a['moderate_min'][0]} 分钟。"
         add("activity_low", 2, "活动量", "这周活动量偏少",
-            f"这 7 天达到快走以上强度的活动合计约 {act['exercise']} 分钟，建议每周至少 {a['moderate_min'][0]} 分钟。"
-            "不用一次满仓，每天加仓 10 到 15 分钟就能够到。",
-            ["activity_minutes"], quip="运动成交量萎缩，每天小额加仓")
+            facts + "不用一次满仓，每天加仓 10 到 15 分钟就能够到。抽不出整段时间的话，生活里的短时高强度也算："
+            "快步爬几层楼、小跑赶一趟车，每次 1 到 2 分钟，一天 3 次。一项 2.5 万名平时不锻炼的人参与的研究里，"
+            "这样的习惯和明显更低的心血管风险相关。",
+            ["activity_minutes", "activity_pattern"], quip="运动成交量萎缩，每天小额加仓")
 
     hp = P.get("headphone_dose")
     if hp and hear and hear["dose"] is not None and hear["dose"] >= hp["tip_percent"]:
@@ -326,7 +387,7 @@ def _week_line(rec: dict, slp: dict, act: dict, load: dict, tips: list[dict]) ->
     # "sleep a little longer" would contradict itself.
     ids = {t["id"] for t in tips}
     good = []
-    if rec["state"] == "steady" and not ids & {"vitals", "hrv_low", "rhr_high"}:
+    if rec["state"] == "steady" and not ids & {"vitals", "hr_run", "hrv_low", "rhr_high"}:
         good.append("恢复平稳")
     if slp["score"] is not None and slp["score"] >= 80 and not ids & {"sleep_short", "sleep_below", "sleep_irregular"}:
         good.append("睡眠不错")
@@ -364,7 +425,7 @@ def build_reports(*, days: list[str], daily: dict[str, list], analysis: dict[str
     for i in report_days(days):
         rec = _recovery(i, analysis, params)
         slp = _sleep(i, daily, analysis, scores)
-        act = _activity(i, analysis, scores)
+        act = _activity(i, analysis, scores, params)
         load = _load(i, analysis, by_day, params)
         if rec["state"] == "none" and slp["score"] is None and act["score"] is None and load["state"] in ("none", "rest"):
             continue
@@ -381,4 +442,23 @@ def build_reports(*, days: list[str], daily: dict[str, list], analysis: dict[str
             "tips": tips, "recovery": rec, "sleep": slp, "activity": act, "load": load, "long": long,
             "hearing": hear,
         })
+    _score_bands(out, params)
     return out
+
+
+def _score_bands(reports: list[dict], P: dict) -> None:
+    """How far a score has to move from one report to the next before it is more than the
+    usual week-to-week wobble: 1.96 SD of the changes between consecutive earlier Sundays.
+
+    Only earlier Sundays count, so a report's band never changes once the week is over.
+    """
+    nb = P.get("noise_band")
+    if not nb:
+        return
+    sundays = [r for r in reports if r["sunday"]]
+    for r in reports:
+        earlier = [s for s in sundays if s["end"] < r["end"]][-(nb["score_weeks"] + 1):]
+        for key in ("sleep", "activity"):
+            diffs = [b[key]["score"] - a[key]["score"] for a, b in zip(earlier, earlier[1:])
+                     if b["end"] - a["end"] == 7 and a[key]["score"] is not None and b[key]["score"] is not None]
+            r[key]["band"] = round(nb["z"] * _sd(diffs), 1) if len(diffs) >= nb["min_score_weeks"] else None

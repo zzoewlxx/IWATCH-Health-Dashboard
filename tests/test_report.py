@@ -189,6 +189,52 @@ class Recovery(unittest.TestCase):
         self.assertEqual(r["recovery"]["state"], "low")
         self.assertIn("高出 6.2", next(t for t in r["tips"] if t["id"] == "rhr_high")["text"])
 
+    def hr_nights(self, w, high, rise=5.0):
+        """Every night of the second week judged; the ``high`` ones (in order) a run above the usual level."""
+        for j in LAST:
+            w.A["hrRun"][j], w.A["hrRise"][j], w.A["hrBase"][j] = 0, 0.5, 58.0
+        for k, j in enumerate(high, start=1):
+            w.A["hrRun"][j], w.A["hrRise"][j] = k, rise
+        return w
+
+    def test_sleeping_heart_rate_above_usual_for_nights_in_a_row(self):
+        r = self.hr_nights(Week(), (11, 12, 13)).last()
+        tip = next(t for t in r["tips"] if t["id"] == "hr_run")
+        self.assertEqual((tip["level"], tip["basis"]), (2, ["night_hr_rise"]))
+        self.assertIn("从3 月 7 日（周五）起，睡眠心率已经连续 3 晚", tip["text"])
+        self.assertIn("约 58 次/分", tip["text"])
+        self.assertIn("先别加仓", tip["quip"])
+        self.assertEqual((r["recovery"]["state"], r["recovery"]["steady"]), ("low", 4))
+        self.assertEqual([(e["start"], e["end"], e["ongoing"]) for e in r["recovery"]["hrRuns"]], [(11, 13, True)])
+        self.assertNotIn("恢复平稳", r["headline"])
+
+    def test_a_single_high_night_says_nothing(self):
+        r = self.hr_nights(Week(), (13,)).last()
+        self.assertEqual(r["tips"], [])
+        self.assertEqual(r["recovery"]["state"], "steady")
+
+    def test_a_run_that_is_over_is_a_small_note(self):
+        r = self.hr_nights(Week(), (9, 10)).last()
+        tip = next(t for t in r["tips"] if t["id"] == "hr_run")
+        self.assertEqual(tip["level"], 1)
+        self.assertIn("已经回落", tip["title"])
+        self.assertIn("3 月 5 日（周三）到3 月 6 日（周四）", tip["text"])
+        self.assertEqual((r["recovery"]["state"], r["recovery"]["steady"]), ("mixed", 5))
+
+    def test_a_long_run_comes_first(self):
+        r = self.hr_nights(Week().set(steps7=3000), range(7, 14)).last()
+        self.assertEqual([(t["id"], t["level"]) for t in r["tips"]][:2], [("hr_run", 3), ("steps_low", 2)])
+        self.assertIn("空仓观望", r["tips"][0]["quip"])
+
+    def test_both_overnight_rules_can_speak_about_the_same_nights(self):
+        w = self.hr_nights(Week(), (11, 12, 13))
+        w.A["vitalsOut"][12], w.A["zSleepHr"][12], w.A["zResp"][12] = 2, 3.0, 2.5
+        r = w.last()
+        ids = [t["id"] for t in r["tips"]]
+        self.assertIn("vitals", ids)
+        self.assertIn("hr_run", ids)
+        self.assertIn("其中 1 晚也有多项夜间体征同时偏离", next(t for t in r["tips"] if t["id"] == "hr_run")["text"])
+
     def test_too_few_days_to_judge(self):
         w = Week()
         for j in range(7, 11):
@@ -240,6 +286,28 @@ class ActivityAndTraining(unittest.TestCase):
         self.assertEqual([t["id"] for t in r["tips"]], ["steps_low", "activity_low"])
         self.assertIn("4,200 步", r["tips"][0]["text"])
         self.assertEqual(r["activity"]["score"], round(40 * (0.5 * 2200 / 3000) + 40 * 90 / 150 + 20))
+
+    def test_active_minutes_come_from_the_watchs_mets(self):
+        r = Week().set(mvpa7=120, mod7=80, vig7=20, exercise7=200).last()
+        a = r["activity"]
+        self.assertEqual((a["source"], a["exercise"], a["appleExercise"]), ("effort", 120, 200))
+        self.assertEqual(next(p for p in a["parts"] if p["key"] == "exercise")["points"], 32)
+        tip = next(t for t in r["tips"] if t["id"] == "activity_low")
+        self.assertIn("中等强度约 80 分钟、高强度约 20 分钟", tip["text"])
+        self.assertIn("合计约 120 分钟", tip["text"])
+        self.assertIn("每次 1 到 2 分钟", tip["text"])
+        self.assertEqual(tip["basis"], ["activity_minutes", "activity_pattern"])
+
+    def test_without_mets_the_exercise_minutes_count(self):
+        a = Week().last()["activity"]
+        self.assertEqual((a["source"], a["exercise"]), ("exercise", 200))
+        self.assertFalse(a["concentrated"])
+
+    def test_a_week_done_in_two_days_is_noted_not_nagged(self):
+        r = Week().set(mvpa7=200, mod7=160, vig7=20, topShare7=0.6).last()
+        self.assertTrue(r["activity"]["concentrated"])
+        self.assertEqual(r["tips"], [])
+        self.assertFalse(Week().set(mvpa7=120, topShare7=0.9).last()["activity"]["concentrated"])   # under 150
 
     def test_load_states(self):
         for ratio, state in ((0.4, "far_below"), (0.7, "below"), (0.8, "steady"), (1.3, "steady"),
@@ -293,6 +361,24 @@ class WholeHistory(unittest.TestCase):
                 self.assertEqual(r, full[r["end"]])
 
 
+class ScoreBands(unittest.TestCase):
+    def test_a_band_comes_from_earlier_sundays_only(self):
+        from test_analysis import made_up_data
+        from hk.analysis import _sd, build_analysis
+        _labels, daily, kind, segs, workouts = made_up_data(n=150)
+        days = [(date(2025, 1, 6) + timedelta(days=k)).isoformat() for k in range(150)]
+        A = build_analysis(days=days, daily=daily, sleep_kind=kind, sleep_segments=segs, workouts=workouts,
+                           params=PARAMS, sleep_need=8.0)["daily"]
+        reports = R.build_reports(days=days, daily=daily, analysis=A, workouts=workouts, params=PARAMS, scores=SCORES)
+        sundays = [r for r in reports if r["sunday"]]
+        self.assertIsNone(sundays[3]["sleep"]["band"])                 # three earlier weeks: too few changes
+        last = reports[-1]
+        earlier = [s for s in sundays if s["end"] < last["end"]][-13:]
+        diffs = [b["activity"]["score"] - a["activity"]["score"] for a, b in zip(earlier, earlier[1:])
+                 if b["end"] - a["end"] == 7]
+        self.assertEqual(last["activity"]["band"], round(1.96 * _sd(diffs), 1))
+
+
 class Wording(unittest.TestCase):
     def test_no_alarm_words_anywhere(self):
         w = Week().set(sleep7=5.5, shortNights7=4, sri28=60.0, bedSd7=120, steps7=2500, exercise7=40,
@@ -302,8 +388,11 @@ class Wording(unittest.TestCase):
         w.A["rhrZ"][13] = 2.6
         for j in (9, 12):
             w.A["vitalsOut"][j], w.A["zSleepHr"][j], w.A["zResp"][j] = 2, 3.0, 2.5
+        for k, j in enumerate((11, 12, 13), start=1):
+            w.A["hrRun"][j], w.A["hrRise"][j], w.A["hrBase"][j] = k, 6.0, 58.0
         r = w.last()
-        self.assertGreaterEqual(len(r["tips"]), 7)
+        self.assertIn("hr_run", [t["id"] for t in r["tips"]])
+        self.assertGreaterEqual(len(r["tips"]), 8)
         text = r["headline"] + "".join(t["title"] + t["quip"] + t["text"] for t in r["tips"])
         self.assertTrue(all(t["quip"] and t["quip"] != t["title"] for t in r["tips"]))
         for word in ("警告", "危险", "异常", "严重", "必须", "立即", "！"):

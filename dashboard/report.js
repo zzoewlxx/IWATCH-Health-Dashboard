@@ -15,6 +15,13 @@
   const SIGNAL = { sleepHr: '睡眠心率', sleepHrv: 'HRV', resp: '呼吸', wristTemp: '腕温', sleepSpo2: '血氧' };
 
   const VITALS = (INDICATOR.get('night_vitals') || {}).params || { signals: {}, outlier_sd: 2 };
+  const HR_RISE = ((INDICATOR.get('night_hr_rise') || {}).params || {}).rise_bpm || 4;
+  /** the second overnight rule on night d: sleeping heart rate above its usual level, and for how many nights */
+  HD.nightHr = (d) => {
+    const rise = (A.hrRise || [])[d], run = (A.hrRun || [])[d];
+    if (rise == null || rise < HR_RISE) return '';
+    return `睡眠心率 +${num(rise, 0)}` + (run >= 2 ? `，连续第 ${run} 晚` : '');
+  };
   /** which overnight signals sat outside the wearer's usual range on the night recorded on day d */
   HD.nightSignals = (d) => Object.keys(VITALS.signals).map((key) => {
     const z = (A['z' + key[0].toUpperCase() + key.slice(1)] || [])[d];
@@ -45,12 +52,16 @@
     if (spark) t.append(spark);
     return t;
   }
-  /** change against the report before it, in plain ink: a lower score is information, not an alarm */
-  function delta(cur, prev, prevRep) {
+  /**
+   * Change against the report before it, in plain ink: a lower score is information, not an alarm.
+   * A change no bigger than the usual week-to-week wobble (`band`, from earlier weeks) reads "持平".
+   */
+  function delta(cur, prev, prevRep, band) {
     if (cur == null || prev == null) return '';
-    const d = cur - prev;
-    return [el('b', { class: 'flat', text: d === 0 ? '持平' : (d > 0 ? '▲ ' : '▼ ') + num(Math.abs(d)) + ' 分' }),
-      ' 较上一期（截至 ' + DAYS[prevRep.end].slice(5) + '）'];
+    const d = cur - prev, calm = d !== 0 && band != null && Math.abs(d) <= band;
+    const text = d === 0 || calm ? '持平' : (d > 0 ? '▲ ' : '▼ ') + num(Math.abs(d)) + ' 分';
+    const title = band == null ? null : `比上一期${d >= 0 ? '高' : '低'} ${num(Math.abs(d))} 分；此前相邻两期常见的差别在 ${num(band)} 分以内`;
+    return [el('b', { class: 'flat', text, title }), ' 较上一期（截至 ' + DAYS[prevRep.end].slice(5) + '）' + (calm ? ' · 在平时的起伏内' : '')];
   }
   function trail(k, pick) {                               // sparkline: earlier reports in grey, this one in the accent
     const from = Math.max(0, k - HISTORY + 1);
@@ -110,7 +121,9 @@
     for (let d = r.end; d >= r.start; d--) {
       const ws = W.filter((w) => w.d === d);
       const out = A.vitalsOut ? A.vitalsOut[d] : null;
-      const off = out != null && out >= (VITALS.min_outliers || 2) ? HD.nightSignals(d).join('、') : '';
+      const off = [out != null && out >= (VITALS.min_outliers || 2) ? HD.nightSignals(d).join('、') : '', HD.nightHr(d)]
+        .filter(Boolean).join('；');
+      const judged = out != null || (A.hrRun && A.hrRun[d] != null);
       const note = NOTES.get(d);
       const cut = D.sleepCut && D.sleepCut[d];
       const apart = D.sleepNap && D.sleepNap[d] >= 0.5 ? `（其中 ${hm(D.sleepNap[d])} 在另一段）` : '';
@@ -124,7 +137,7 @@
         el('td', { text: D.exerciseMin[d] == null ? '–' : num(D.exerciseMin[d]) }),
         hp ? el('td', { text: D.listenMin[d] ? mins(D.listenMin[d]) : '–' }) : null,
         el('td', { class: 'l', text: ws.length ? ws.map((w) => w.type + ' ' + mins(w.min)).join('、') : '–' }),
-        el('td', { class: 'l' + (off ? ' mark' : ''), text: off || (out == null ? '–' : '和平时一样') }),
+        el('td', { class: 'l' + (off ? ' mark' : ''), style: 'white-space:normal;min-width:13em', text: off || (judged ? '和平时一样' : '–') }),
         el('td', { class: 'l' }, note ? [note.tags.map((t) => el('span', { class: 'pill', text: t })), note.note ? ' ' + note.note : ''] : '')));
     }
     return el('div', { class: 'tablewrap', style: 'border-top:0;margin-top:6px;max-height:none' },
@@ -239,17 +252,28 @@
   function activityCard(r) {
     const a = r.activity;
     const part = (key) => a.parts.find((p) => p.key === key) || {};
-    return sectionCard('日常活动', '对照指南的完成度：步数 40 分，运动分钟 40 分，力量训练 20 分', scoreFigure(a),
+    const effort = a.source === 'effort';
+    const minutes = a.exercise == null ? '没有手表的强度或锻炼记录'
+      : effort ? `7 天合计约 ${num(a.exercise)} 分钟（中等 ${num(a.moderate)} + 高强度 ${num(a.vigorous)} × 2）· 150 分钟得满分`
+        : `7 天合计约 ${num(a.exercise)} 分钟（按锻炼分钟）· 150 分钟得满分`;
+    const extra = [
+      a.concentrated && ['活动的分布', `${num(100 * a.topShare)}% 集中在两天里完成；研究发现，每周达标时集中练和分散练获益相近`],
+      a.bursts != null && ['生活里的高强度片段', `日均 ${num(a.bursts, 1)} 次（训练以外 1–3 分钟）`],
+    ].filter(Boolean);
+    return sectionCard('日常活动', '对照指南的完成度：步数 40 分，中高强度 40 分，力量训练 20 分', scoreFigure(a),
       el('div', { class: 'meters' },
         meter('步数', part('steps').points, 40, a.steps == null ? '没有步数记录' : `日均 ${num(a.steps)} 步 · 7,000 步得满分`),
-        meter('运动分钟', part('exercise').points, 40, a.exercise == null ? '没有手表的锻炼记录' : `7 天合计约 ${num(a.exercise)} 分钟 · 150 分钟得满分`),
-        meter('力量训练', part('strength').points, 20, a.strength == null ? '没有训练记录' : `${a.strength} 天 · 2 天得满分`)));
+        meter(effort ? '中高强度' : '运动分钟', part('exercise').points, 40, minutes),
+        meter('力量训练', part('strength').points, 20, a.strength == null ? '没有训练记录' : `${a.strength} 天 · 2 天得满分`)),
+      extra.length ? facts(extra) : null);
   }
   function recoveryCard(r, ui, ctx) {
     const v = r.recovery;
+    const runs = v.hrRuns || [];
     const fact = [
       v.hrv7 != null && `夜间 HRV 的 7 日均值 ${num(v.hrv7, 1)} ms` + (v.hrvLo != null ? `，你的平稳带是 ${num(v.hrvLo, 1)} – ${num(v.hrvHi, 1)}` : ''),
       v.rhr7 != null && `静息心率 ${num(v.rhr7, 1)}` + (v.rhrBase != null ? `，基线 ${num(v.rhrBase, 1)}` : ''),
+      ...runs.map((e) => `睡眠心率 ${md(e.start)} 起连续 ${e.nights} 晚比平时高出 ${HR_RISE} 次/分以上` + (e.ongoing ? '' : '，已回落')),
     ].filter(Boolean).join('；');
     return ui.card({
       title: '恢复', h: 220,
@@ -318,10 +342,10 @@
       tile('恢复', rec.label, '', rec.days ? `${rec.days} 天里有 ${rec.steady} 天平稳` : '需要约两个月的夜间数据',
         trail(k, (x) => (x.recovery.days ? x.recovery.steady / x.recovery.days : null))),
       tile('睡眠', r.sleep.score == null ? '–' : String(r.sleep.score), r.sleep.score == null ? '' : '分',
-        r.sleep.score == null ? '有记录的夜晚不足 4 晚' : delta(r.sleep.score, prev && prev.sleep.score, prev) || '对照指南的完成度',
+        r.sleep.score == null ? '有记录的夜晚不足 4 晚' : delta(r.sleep.score, prev && prev.sleep.score, prev, r.sleep.band) || '对照指南的完成度',
         trail(k, (x) => x.sleep.score)),
       tile('日常活动', r.activity.score == null ? '–' : String(r.activity.score), r.activity.score == null ? '' : '分',
-        r.activity.score == null ? '数据不足' : delta(r.activity.score, prev && prev.activity.score, prev) || '对照指南的完成度',
+        r.activity.score == null ? '数据不足' : delta(r.activity.score, prev && prev.activity.score, prev, r.activity.band) || '对照指南的完成度',
         trail(k, (x) => x.activity.score)),
       tile('训练负荷', load.label, '', load.ratio != null ? `此前四周周均的 ${num(load.ratio, 2)} 倍` : load.load7 ? `这 7 天 ${load.sessions} 次训练` : '',
         trail(k, (x) => x.load.load7)));

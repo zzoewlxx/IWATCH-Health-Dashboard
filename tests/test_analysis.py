@@ -112,6 +112,76 @@ class NightOutliers(unittest.TestCase):
         self.assertIsNone(A.night_outliers(self.daily, self.n, self.p)[0]["sleepHr"][5])
 
 
+class NightHeartRateRuns(unittest.TestCase):
+    """The NightSignal-style rule: sleeping heart rate a few beats above the usual, nights in a row."""
+    P = dict(baseline_nights=90, min_baseline=14, rise_bpm=4, max_gap_nights=1)
+
+    def nights(self, tail):
+        return [58.0, 59.0] * 10 + tail                          # twenty ordinary nights, median 58.5
+
+    def test_baseline_is_the_median_of_earlier_nights_only(self):
+        base, rise, run = A.night_hr_runs(self.nights([70.0]), **self.P)
+        self.assertEqual(base[20], 58.5)                         # the high night itself is not in it
+        self.assertEqual(rise[20], 11.5)
+        self.assertEqual(run[20], 1)
+        self.assertEqual(run[19], 0)
+        self.assertIsNone(run[5])                                # fewer than 14 earlier nights: no judgement
+
+    def test_counts_nights_in_a_row_at_or_above_the_line(self):
+        _base, _rise, run = A.night_hr_runs(self.nights([62.5, 63.0, 62.4, 64.0]), **self.P)
+        self.assertEqual(run[20:], [1, 2, 0, 1])                 # 62.4 is only 3.4 above: the run ends
+
+    def test_one_missing_night_does_not_break_a_run_but_two_do(self):
+        _base, _rise, run = A.night_hr_runs(self.nights([63.0, None, 63.0]), **self.P)
+        self.assertEqual(run[20:], [1, None, 2])
+        _base, _rise, run = A.night_hr_runs(self.nights([63.0, None, None, 63.0]), **self.P)
+        self.assertEqual(run[20:], [1, None, None, 1])
+
+    def test_baseline_window_follows_slow_change(self):
+        values = [50.0] * 100 + [60.0] * 100 + [61.0]
+        base, _rise, run = A.night_hr_runs(values, **self.P)
+        self.assertEqual(base[-1], 60.0)                         # only the last 90 nights count
+        self.assertEqual(run[-1], 0)
+
+    def test_episodes_list_each_run_once_with_its_nights(self):
+        base, rise, run = A.night_hr_runs(self.nights([63.0, 64.0, 58.0, 66.0, None, 63.0, 63.5]), **self.P)
+        eps = A.hr_episodes(run, rise, base, min_nights=2, max_gap_nights=1)
+        self.assertEqual([(e["start"], e["end"], e["nights"]) for e in eps], [(20, 21, 2), (23, 26, 3)])
+        self.assertEqual(eps[1]["members"], [23, 25, 26])
+        self.assertEqual(eps[1]["rise"], 7.0)
+        self.assertTrue(eps[1]["ongoing"])
+        self.assertFalse(eps[0]["ongoing"])
+        # as known on day 25 the second run had two nights; on day 22 the first was already over
+        self.assertEqual([e["nights"] for e in A.hr_episodes(run, rise, base, min_nights=2, max_gap_nights=1, upto=25)],
+                         [2, 2])
+        self.assertEqual(A.hr_episodes(run, rise, base, min_nights=2, max_gap_nights=1, upto=22)[0]["ongoing"], False)
+
+
+class Intensity(unittest.TestCase):
+    def build(self, mod, vig, bursts=None):
+        n = len(mod)
+        days, daily, kind, segs, workouts = made_up_data(n=n)
+        daily.update(modMin=mod, vigMin=vig, vigBursts=bursts or [0] * n)
+        return A.build_analysis(days=days, daily=daily, sleep_kind=kind, sleep_segments=segs, workouts=workouts,
+                                params=PARAMS, sleep_need=8.0)["daily"]
+
+    def test_a_vigorous_minute_counts_twice(self):
+        out = self.build([20] * 14, [5] * 14)
+        self.assertEqual(out["mvpa7"][13], 7 * (20 + 2 * 5))
+        self.assertEqual((out["mod7"][13], out["vig7"][13]), (140, 35))
+
+    def test_days_without_data_are_filled_with_the_average_of_the_rest(self):
+        mod = [20] * 12 + [None, None]
+        out = self.build(mod, [0] * 12 + [None, None])
+        self.assertEqual(out["mvpa7"][13], 140)                  # five days of 20, scaled to seven
+        out = self.build([20] * 10 + [None] * 4, [0] * 10 + [None] * 4)
+        self.assertIsNone(out["mvpa7"][13])                      # only three days: too few
+
+    def test_share_of_the_two_busiest_days(self):
+        out = self.build([10, 10, 10, 10, 10, 100, 100] * 2, [0] * 14)
+        self.assertEqual(out["topShare7"][13], round(200 / 250, 2))
+
+
 class SleepRegularity(unittest.TestCase):
     def test_identical_nights_score_100(self):
         n = 10
@@ -275,6 +345,12 @@ def made_up_data(n=150, seed=7):
             key = rng.choice(["TraditionalStrengthTraining", "Running", "Walking"])
             workouts.append({"d": d, "key": key, "min": round(rng.uniform(20, 90), 1),
                              "effort": None if rng.random() < 0.3 else float(rng.randint(3, 9))})
+    # intensity minutes from a second generator, so the series above stay exactly as they were
+    r2 = random.Random(seed + 1000)
+    worn = [r2.random() > 0.1 for _ in range(n)]
+    daily["modMin"] = [round(abs(r2.gauss(30, 15)), 1) if w else None for w in worn]
+    daily["vigMin"] = [round(abs(r2.gauss(5, 4)), 1) if w else None for w in worn]
+    daily["vigBursts"] = [r2.randint(0, 4) if w else None for w in worn]
     return days, daily, kind, segs, workouts
 
 

@@ -206,11 +206,215 @@
     return { node: wrap };
   };
 
+  // ------------------------------------------------------------------ how big a change has to be
+  const NZ = H.noise || { keys: {}, z: 1.96 };
+  /** [key, name, how to show a size of change] — the readings people most often compare */
+  const NOISE_ROWS = [
+    ['rhr', '静息心率', (v) => num(v, 1) + ' 次/分'],
+    ['sleepHr', '睡眠心率', (v) => num(v, 1) + ' 次/分'],
+    ['sleepHrv', '睡眠 HRV', (v) => num(v, 1) + ' ms'],
+    ['sleepTotal', '睡眠时长', (v) => mins(v * 60)],
+    ['bedtime', '入睡时间', (v) => mins(v)],
+    ['steps', '步数', (v) => num(v) + ' 步'],
+    ['modMin', '中等强度', (v) => num(v) + ' 分钟'],
+    ['weight', '体重', (v) => num(v, 2) + ' kg'],
+    ['bodyFat', '体脂率', (v) => num(v, 1) + ' 个百分点'],
+    ['vo2max', 'VO₂max', (v) => num(v, 1) + ' ml/kg·min'],
+    ['resp', '呼吸频率', (v) => num(v, 2) + ' 次/分'],
+    ['wristTemp', '手腕温度', (v) => num(v, 2) + ' °C'],
+  ];
+  HD.noiseTable = () => {
+    const z = NZ.z || 1.96;
+    const rows = NOISE_ROWS.filter(([k]) => NZ.keys[k]).map(([k, name, f]) => {
+      const [te, pairs] = NZ.keys[k];
+      return el('tr', null, el('td', { class: 'l', text: name }), el('td', { text: '± ' + f(te) }),
+        el('td', null, el('b', { text: f(z * Math.SQRT2 * te) })), el('td', { text: f(z * te * Math.sqrt(2 / 7)) }),
+        el('td', { class: 'dim', text: pairs ? pairs + ' 对' : 'Apple 的验证数据' }));
+    });
+    if (!rows.length) return { empty: true };
+    return {
+      node: el('div', null,
+        el('div', { class: 'tablewrap', style: 'border-top:0;margin-top:6px;max-height:none' }, el('table', null,
+          el('thead', null, el('tr', null, el('th', { class: 'l', text: '指标' }), el('th', { text: '平时每天的起伏' }),
+            el('th', { text: '两次单独读数要差' }), el('th', { text: '两个 7 天平均要差' }), el('th', { text: '依据' }))),
+          el('tbody', null, rows))),
+        el('p', { class: 'desc', style: 'margin-top:10px', text: `“平时每天的起伏”是典型误差：最近一年里相邻两次读数之差的标准差 ÷ √2。差得比右边两列少，就分不清是真的变了还是平时的起伏，看板上的涨跌箭头这时显示为“持平”。7 天平均那一列按每天都有读数来算。` })),
+    };
+  };
+
+  // ------------------------------------------------------------------ your own comparisons
+  const CT = (H.insights || {}).contrasts;
+  const VERDICT = {
+    clear: ['看得出差别', 'clear'], maybe: ['可能有差别', 'maybe'],
+    none: ['还看不出差别', 'none'], few: ['晚数不够', 'few'],
+  };
+  const LITERATURE = {
+    evening_workout: '研究怎么说：傍晚运动整体上不影响睡眠；可能有影响的是睡前 1 小时内结束的高强度运动（23 项研究的荟萃分析）。',
+    listen_before_sleep: '研究怎么说：睡前听歌可能让旋律在脑子里循环、睡得浅一些；而对有失眠困扰的人，每天听 25 到 60 分钟音乐能改善主观睡眠质量。两边方向相反，正好看你自己的数据。',
+    daylight: '研究怎么说：白天多接触自然光，生物钟会往前调，晚睡型的人调得更多。',
+  };
+  const ALCOHOL = '研究怎么说：饮酒后入睡头 3 小时心率升高、HRV 下降，喝得越多越明显（4,098 人的研究）。';
+  /** a size of change, worded for the measure it is about */
+  function change(key, v) {
+    const a = Math.abs(v);
+    if (key === 'bedtime') return (v > 0 ? '晚 ' : '早 ') + num(a) + ' 分钟';
+    if (key === 'sleepTotal') return (v > 0 ? '多 ' : '少 ') + num(a) + ' 分钟';
+    if (key === 'sleepHr') return (v > 0 ? '高 ' : '低 ') + num(a, 1) + ' 次/分';
+    return (v > 0 ? '高 ' : '低 ') + num(a, 1) + ' ms';
+  }
+  function level(key, v) {
+    if (v == null) return '–';
+    if (key === 'bedtime') return clock(v);
+    if (key === 'sleepTotal') return mins(v);
+    return num(v, 1) + (key === 'sleepHr' ? ' 次/分' : ' ms');
+  }
+  const signedNum = (v, dec) => (v > 0 ? '+' : v < 0 ? '−' : '') + num(Math.abs(v), dec);
+  /** a difference and its interval on a line centred on zero, scaled to its own row (rows have different units) */
+  function ciBar(r) {
+    if (r.diff == null) return el('span', { class: 'dim', text: '–' });
+    const scale = Math.max(Math.abs(r.lo), Math.abs(r.hi), 1e-9) * 1.15;
+    const pos = (v) => Math.max(0, Math.min(100, 50 + (50 * v) / scale));
+    return el('div', { class: 'ci', role: 'img', 'aria-label': `差别 ${signedNum(r.diff, 1)}，95% 区间 ${signedNum(r.lo, 1)} 到 ${signedNum(r.hi, 1)}` },
+      el('i', { class: 'zero' }), el('i', { class: 'span ' + r.verdict, style: `left:${pos(r.lo)}%;width:${Math.max(1, pos(r.hi) - pos(r.lo))}%` }),
+      el('i', { class: 'dot ' + r.verdict, style: `left:${pos(r.diff)}%` }));
+  }
+  function contrastCard(item, ui) {
+    const names = new Map(CT.outcomes.map((o) => [o.key, o]));
+    const lit = LITERATURE[item.id] || (/酒/.test(item.id) ? ALCOHOL : '');
+    const rows = item.rows.map((r) => {
+      const unit = r.key === 'sleepTotal' || r.key === 'bedtime' ? ' 分钟' : r.key === 'sleepHr' ? ' 次/分' : ' ms';
+      const dec = r.key === 'sleepTotal' || r.key === 'bedtime' ? 0 : 1;
+      const verdict = r.verdict === 'few' ? `晚数不够（${r.nA} 对 ${r.nB}）` : VERDICT[r.verdict][0];
+      return el('tr', null,
+        el('td', { class: 'l', text: names.get(r.key).name }),
+        el('td', { class: 'pair', text: level(r.key, r.meanA) + ' / ' + level(r.key, r.meanB) }),
+        el('td', { class: 'diff' }, r.diff == null ? '–' : [el('b', { text: change(r.key, r.diff) }),
+          el('small', { text: `${signedNum(r.lo, dec)} 到 ${signedNum(r.hi, dec)}${unit}` })]),
+        el('td', { class: 'l' }, ciBar(r)),
+        el('td', { class: 'l' }, el('span', { class: 'verdict ' + VERDICT[r.verdict][1], text: verdict,
+          title: r.verdict === 'maybe' ? '区间没有跨过 0，但这里同时比了很多项，校正之后还不够确定，要更多晚上来确认' : null })));
+    });
+    const card = el('section', { class: 'card s6' },
+      el('div', { class: 'card-head' }, el('div', null, el('h3', { text: item.title }),
+        el('p', { class: 'desc', text: `有：${item.a}（${item.nA} 晚）· 没有：${item.b}（${item.nB} 晚）` + (item.note ? ' · ' + item.note : '') }))),
+      el('div', { class: 'tablewrap', style: 'border-top:0;margin-top:6px;max-height:none' }, el('table', { class: 'contrast' },
+        el('thead', null, el('tr', null, el('th', { class: 'l', text: '那一晚' }), el('th', { text: '有 / 没有' }),
+          el('th', { text: '差别（95% 区间）' }), el('th', { class: 'l', text: '' }), el('th', { class: 'l', text: '结论' }))),
+        el('tbody', null, rows))),
+      lit ? el('p', { class: 'desc', style: 'margin-top:10px' }, lit, ' ',
+        el('button', { class: 'link', type: 'button', text: '看依据', onclick: () => ui.gotoRef('own_comparisons') })) : null);
+    return card;
+  }
+  HD.contrastNodes = (ui) => {
+    if (!CT) return [el('div', { class: 'callout', text: '当前的看板数据是旧版本生成的，还没有这一部分。重新运行一次更新即可。' })];
+    const total = CT.items.reduce((s, it) => s + it.rows.filter((r) => r.diff != null).length, 0);
+    const out = [el('div', { class: 'callout' },
+      `每组把两类夜晚的平均值放在一起比，给出 95% 区间：区间跨过 0（竖线），就是还看不出差别。这里一共比了 ${total} 项，为了挡掉碰巧的结果，按错误发现率 ${num(100 * CT.fdr)}% 再校正一次；区间没跨过 0、但校正后还不够确定的，写作“可能有差别”。这是你自己的观察记录，不是试验：看得出差别，也不说明就是这个原因造成的。`)];
+    const cards = CT.items.map((it) => contrastCard(it, ui));
+    if (!CT.items.some((it) => it.id.startsWith('tag:'))) {
+      cards.push(el('section', { class: 'card s6' },
+        el('div', { class: 'card-head' }, el('div', null, el('h3', { text: '你标注的日子' }),
+          el('p', { class: 'desc', text: '饮酒、熬夜、生病、出差之后的那一晚' }))),
+        el('p', { class: 'desc', style: 'margin-top:10px' },
+          `在 标注.csv 里记下这样的日子，同一个标签满 ${CT.minNights} 天后，这里会多一组对照：那天晚上和没有标注的晚上比。`,
+          CT.tagsPending.length ? ' 现在的标签：' + CT.tagsPending.map((t) => `${t.tag} ${t.days} 天`).join('、') + '。' : ''),
+        el('p', { class: 'desc', text: ALCOHOL })));
+    }
+    out.push(el('div', { class: 'grid' }, cards));
+    return out;
+  };
+
+  // ------------------------------------------------------------------ VO2 max among people of the same age
+  const FIT = H.fitness;
+  HD.vo2Band = () => {
+    if (!FIT || !FIT.row) return null;
+    const p = FIT.percentiles, row = FIT.row;
+    return [row[p.indexOf(25)], row[p.indexOf(75)], `同龄同性别中间一半（第 25 到 75 百分位）`];
+  };
+  HD.vo2Peers = (ui) => () => {
+    if (!FIT) return { empty: true };
+    const sexWord = { male: '男性', female: '女性' }[FIT.sex] || '';
+    const recent = `近 30 天平均 ${num(FIT.value, 1)} ml/kg·min（${FIT.n} 次读数，最新 ${FIT.last}）`;
+    if (FIT.why === 'profile' || FIT.why === 'young') {
+      return { node: el('div', { class: 'peers' }, el('p', { class: 'desc', text: recent }),
+        el('p', { class: 'desc', text: FIT.why === 'young' ? '参照表从 20 岁开始，未满 20 岁先不和同龄人比。'
+          : '健康 App 里没有填年龄或性别，没法和同龄人比。在 iPhone 的健康 App → 个人资料 → 健康详细信息里填好，下次更新后这里就会显示。' })) };
+    }
+    const group = `${FIT.group[0]}–${FIT.group[1]} 岁${sexWord}` + (FIT.beyond ? '（参照表只到 79 岁）' : '');
+    if (FIT.why === 'stale') {
+      return { node: el('div', { class: 'peers' }, el('p', { class: 'desc', text: recent }),
+        el('p', { class: 'desc', text: `最近一次读数在半年以前，先不给位置。戴着手表做户外步行、跑步或徒步，就会有新的读数。参照组：${group}。` })) };
+    }
+    const p = FIT.percentiles, row = FIT.row;
+    // a strip in percentile space; the table's columns become the ticks
+    const at = (pct) => Math.max(0, Math.min(100, pct));
+    const dotPct = FIT.pct != null ? FIT.pct : FIT.side === 'below' ? 2 : 98;
+    const lo = FIT.pctLo != null ? FIT.pctLo : FIT.loSide === 'below' ? 0 : 100;
+    const hi = FIT.pctHi != null ? FIT.pctHi : FIT.hiSide === 'above' ? 100 : 0;
+    const lowEdge = FIT.group[0] >= 60 ? null : 20;
+    const strip = el('div', { class: 'pstrip', role: 'img', 'aria-label': `约第 ${FIT.pct == null ? (FIT.side === 'below' ? '5 以下' : '95 以上') : FIT.pct} 百分位` },
+      lowEdge ? el('i', { class: 'low', style: `width:${lowEdge}%` }) : null,
+      el('i', { class: 'err', style: `left:${at(lo)}%;width:${Math.max(1, at(hi) - at(lo))}%` }),
+      el('i', { class: 'dot', style: `left:${at(dotPct)}%` }),
+      p.map((q, k) => el('span', { class: 'tick', style: `left:${q}%` }, el('b', { text: '第 ' + q }), el('em', { text: num(row[k], 1) }))));
+    const where = FIT.pct != null ? `约第 ${FIT.pct} 百分位` : FIT.side === 'below' ? '低于第 5 百分位' : '高于第 95 百分位';
+    const met = FIT.vsMedianMet;
+    const vsMedian = `同龄中位数 ${num(FIT.median, 1)}，` + (Math.abs(met) < 0.05 ? '你在中位数上'
+      : `你${met > 0 ? '高' : '低'} ${num(Math.abs(FIT.value - FIT.median), 1)}（约 ${num(Math.abs(met), 1)} MET）`);
+    const lowLine = FIT.group[0] >= 60 ? `60 岁及以上${sexWord}低于 ${num(FIT.lowLine, 0)}` : `低于 ${num(FIT.lowLine, 1)}（同龄同性别最低的五分之一）`;
+    const errText = FIT.pctLo != null && FIT.pctHi != null ? `第 ${FIT.pctLo} 到第 ${FIT.pctHi} 百分位之间`
+      : `${FIT.pctLo != null ? '第 ' + FIT.pctLo : '第 5 以下'} 到 ${FIT.pctHi != null ? '第 ' + FIT.pctHi : '第 95 以上'} 之间`;
+    return {
+      node: el('div', { class: 'peers' },
+        el('div', { class: 'peers-head' }, el('b', { class: 'big', text: where }), el('span', { text: '参照组：' + group + '，FRIEND 跑步机测试' })),
+        el('p', { class: 'desc', text: recent }),
+        strip,
+        el('dl', { class: 'facts' },
+          el('dt', { text: '和中位数比' }), el('dd', { text: vsMedian }),
+          el('dt', { text: '手表的估算误差' }), el('dd', { text: `常见误差约 ±4.7，所以位置可能在${errText}` }),
+          el('dt', { text: 'Apple 的“低”档' }), el('dd', { text: lowLine + (FIT.low ? '。你的读数落在这一档；Apple 的说法是，大多数人可以通过提高有氧运动的强度和频率来提高' : '。你不在这一档') })),
+        el('p', { class: 'desc', style: 'margin-top:12px' },
+          '心肺适能是少数能练上去的健康指标：6 到 12 周的有氧训练通常能让 VO₂max 提高 5% 到 10%。33 项研究的荟萃分析里，它每高 1 MET（3.5 ml/kg·min），长期的全因死亡风险约低 13%。和同龄人比只是参照，和自己过去比更有意义。 ',
+          el('button', { class: 'link', type: 'button', text: '看依据', onclick: () => ui.gotoRef('vo2max_peers') }))),
+    };
+  };
+
   // ------------------------------------------------------------------ correlations
   const strength = (r) => {
     const a = Math.abs(r);
     return (a < 0.1 ? '几乎无关' : (a < 0.3 ? '弱' : a < 0.5 ? '中等' : '较强') + (r > 0 ? '正相关' : '负相关'));
   };
+  /** small seeded generator, so an interval reads the same every time the page is drawn */
+  function mulberry32(seed) {
+    return () => {
+      seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function pearson(pts) {
+    let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
+    const n = pts.length;
+    for (const [x, y] of pts) { sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y; }
+    const vx = sxx - sx * sx / n, vy = syy - sy * sy / n;
+    return vx > 0 && vy > 0 ? (sxy - sx * sy / n) / Math.sqrt(vx * vy) : null;
+  }
+  /** 95% interval for r, resampling whole weeks (runs of 7 points in time order): neighbouring days are alike */
+  function rInterval(pts) {
+    const blocks = [];
+    for (let k = 0; k < pts.length; k += 7) blocks.push(pts.slice(k, k + 7));
+    if (blocks.length < 4) return null;
+    const rnd = mulberry32(pts.length * 7919 + 17), reps = 400, rs = [];
+    for (let b = 0; b < reps; b++) {
+      const sample = [];
+      for (let k = 0; k < blocks.length; k++) sample.push(...blocks[Math.floor(rnd() * blocks.length)]);
+      const r = pearson(sample);
+      if (r != null) rs.push(r);
+    }
+    rs.sort((p, q) => p - q);
+    return rs.length < reps * 0.9 ? null : [rs[Math.floor(0.025 * rs.length)], rs[Math.ceil(0.975 * rs.length) - 1]];
+  }
   /** spec: { x:{key,name,unit,dec,fmt}, y:{...}, lag } — y is taken `lag` days after x */
   HD.scatter = (spec) => (ctx) => {
     const T = ctx.T, X = D[spec.x.key], Y = D[spec.y.key], lag = spec.lag || 0;
@@ -255,9 +459,12 @@
         },
       ],
     });
+    const ci = rInterval(pts);
+    const fr = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(2);
+    const verdict = ci == null ? strength(r) : ci[0] > 0 || ci[1] < 0 ? strength(r) : '还看不出关系';
     return {
       option,
-      note: `r = ${r > 0 ? '+' : '−'}${Math.abs(r).toFixed(2)}，${strength(r)} · ${n} 天`,
+      note: `r = ${fr(r)}` + (ci ? `（95% 区间 ${fr(ci[0])} 到 ${fr(ci[1])}）` : '') + `，${verdict} · ${n} 天`,
       table: {
         cols: ['日期', spec.x.name, spec.y.name + (lag ? '（次日）' : '')],
         rows: pts.slice().reverse().map((p) => [DAYS[p[2]], fx(p[0]), fy(p[1])]),

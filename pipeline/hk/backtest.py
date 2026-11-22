@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import copy
 
-from .analysis import _mean, night_outliers
+from .analysis import _mean, hr_episodes, night_hr_runs, night_outliers
 from .report import build_reports
 
 # (indicator, parameter, values to try, id of the suggestion it drives, what the count means)
@@ -46,6 +46,18 @@ def sensitivity(*, days: list[str], daily: dict[str, list], analysis: dict[str, 
                      "current": value == p["outlier_sd"]})
     variants.append({"indicator": "night_vitals", "label": "夜间体征偏离几个标准差才算数", "counts": "被标出的夜晚",
                      "unit": "晚", "of": judged, "rows": rows})
+
+    h = params["night_hr_rise"]
+    rows = []
+    for value in (3, 4, 5, 6):
+        _base, _rise, run = night_hr_runs(daily.get("sleepHr") or [None] * n, baseline_nights=h["baseline_nights"],
+                                          min_baseline=h["min_baseline"], rise_bpm=value,
+                                          max_gap_nights=h["max_gap_nights"])
+        hr_judged = sum(1 for v in run if v is not None)
+        rows.append({"value": value, "count": sum(1 for v in run if v is not None and v >= h["min_nights"]),
+                     "current": value == h["rise_bpm"]})
+    variants.append({"indicator": "night_hr_rise", "label": f"睡眠心率高出平时几次/分算偏高（连续 {h['min_nights']} 晚才提示）",
+                     "counts": "提示的夜晚", "unit": "晚", "of": hr_judged, "rows": rows})
 
     for indicator, key, values, tip, label in TIP_VARIANTS:
         rows = []
@@ -97,20 +109,36 @@ def annotation_check(annotations: list[dict], analysis: dict[str, list], params:
             flagged.append({"d": j, "tags": [t for e in notes for t in e["tags"]],
                             "note": "；".join(e["note"] for e in notes if e["note"])})
 
+    # the second overnight rule: runs of nights with sleeping heart rate above usual
+    h = params["night_hr_rise"]
+    run, rise = analysis.get("hrRun") or [None] * n, analysis.get("hrRise") or [None] * n
+    high = lambda j: 0 <= j < n and rise[j] is not None and rise[j] >= h["rise_bpm"] - 1e-9   # noqa: E731
+    runs = []
+    for e in hr_episodes(run, rise, analysis.get("hrBase") or [None] * n, min_nights=h["min_nights"],
+                         max_gap_nights=h["max_gap_nights"]):
+        notes = [by_day[d] for d in range(e["start"] - 1, e["end"] + 1) if d in by_day]
+        runs.append({"start": e["start"], "end": e["end"], "nights": e["nights"], "rise": e["rise"],
+                     "tags": [t for x in notes for t in x["tags"]], "note": "；".join(x["note"] for x in notes if x["note"])})
+
     tags: dict[str, dict] = {}
     for e in annotations:
         d = e["d"]
         for tag in e["tags"] or ["（只有备注）"]:
-            t = tags.setdefault(tag, {"tag": tag, "days": 0, "judged": 0, "hits": 0, "z": {k: [] for k in p["signals"]}})
+            t = tags.setdefault(tag, {"tag": tag, "days": 0, "judged": 0, "hits": 0, "hrJudged": 0, "hrHits": 0,
+                                      "z": {k: [] for k in p["signals"]}})
             t["days"] += 1
             if judged(d) or judged(d + 1):
                 t["judged"] += 1
                 t["hits"] += is_flagged(d) or is_flagged(d + 1)
+            if any(0 <= j < n and rise[j] is not None for j in (d, d + 1)):
+                t["hrJudged"] += 1
+                t["hrHits"] += high(d) or high(d + 1)
             for key in p["signals"]:
                 series = analysis["z" + key[0].upper() + key[1:]]
                 t["z"][key] += [series[j] for j in (d, d + 1) if 0 <= j < n and series[j] is not None]
     rows = []
     for t in sorted(tags.values(), key=lambda t: -t["days"]):
         rows.append({"tag": t["tag"], "days": t["days"], "judged": t["judged"], "hits": int(t["hits"]),
+                     "hrJudged": t["hrJudged"], "hrHits": int(t["hrHits"]),
                      "z": {k: round(_mean(v), 1) if len(v) >= 3 else None for k, v in t["z"].items()}})
-    return {"annotated": len(annotations), "flagged": flagged, "tags": rows}
+    return {"annotated": len(annotations), "flagged": flagged, "hrRuns": runs, "tags": rows}

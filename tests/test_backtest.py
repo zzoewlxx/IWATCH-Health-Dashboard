@@ -29,7 +29,7 @@ class Sensitivity(unittest.TestCase):
         return next(v for v in self.out["variants"] if v["indicator"] == indicator)
 
     def test_every_variant_marks_the_value_in_use(self):
-        self.assertEqual(len(self.out["variants"]), 7)
+        self.assertEqual(len(self.out["variants"]), 8)
         for v in self.out["variants"]:
             self.assertEqual(sum(r["current"] for r in v["rows"]), 1, v["indicator"])
             self.assertTrue(all(0 <= r["count"] <= v["of"] for r in v["rows"]), v["indicator"])
@@ -40,7 +40,7 @@ class Sensitivity(unittest.TestCase):
         return [r["count"] for r in self.variant(indicator)["rows"]]
 
     def test_stricter_thresholds_never_fire_more_often(self):
-        for indicator in ("night_vitals", "hrv_night", "training_load"):          # values listed loosest first
+        for indicator in ("night_vitals", "night_hr_rise", "hrv_night", "training_load"):   # loosest first
             c = self.counts(indicator)
             self.assertEqual(c, sorted(c, reverse=True), indicator)
         for indicator in ("steps", "sleep_duration", "sleep_debt"):               # a higher bar catches more weeks
@@ -77,6 +77,17 @@ class Annotations(unittest.TestCase):
         self.assertEqual((rows["生病"]["days"], rows["生病"]["hits"]), (1, 1))
         self.assertEqual(rows["饮酒"]["z"]["sleepHr"], 2.0)          # four nights around the two days, all +2
         self.assertIsNone(rows["生病"]["z"]["sleepHr"])              # two nights: too few to average
+
+    def test_runs_of_high_heart_rate_nights_pick_up_notes_too(self):
+        self.A["hrRise"] = [0.0] * 40
+        self.A["hrBase"] = [58.0] * 40
+        self.A["hrRun"] = [0] * 40
+        for j, r in ((9, 1), (10, 2), (11, 3)):
+            self.A["hrRise"][j], self.A["hrRun"][j] = 5.0, r
+        got = B.annotation_check(self.notes, self.A, PARAMS)
+        self.assertEqual(got["hrRuns"], [{"start": 9, "end": 11, "nights": 3, "rise": 5.0, "tags": ["饮酒"], "note": "聚餐"}])
+        rows = {r["tag"]: r for r in got["tags"]}
+        self.assertEqual((rows["饮酒"]["hrJudged"], rows["饮酒"]["hrHits"]), (2, 1))
 
     def test_no_annotations(self):
         got = B.annotation_check([], self.A, PARAMS)
