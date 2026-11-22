@@ -306,9 +306,12 @@
       el('button', { class: 'ghost', type: 'button', text: '最新', onclick: go(REPORTS.length - 1), disabled: k === REPORTS.length - 1 }),
       el('span', { class: 'span', text: (r.sunday ? '周一到周日' : '最近 7 天') + (r.partial ? ' · 最后一天是导出当天，步数等还不完整' : '') }));
 
-    const head = el('section', { class: 'card s12 report-head' },
-      el('h2', { text: r.headline }),
-      tipsNode(r, ui));
+    // with a title card above (the page's film), the headline is already its subtitle
+    const filmed = !!(HD.film && HD.film('report'));
+    const tips = tipsNode(r, ui);
+    const head = filmed
+      ? (tips ? el('section', { class: 'card s12 report-head filmed' }, el('div', { class: 'tips-head', text: '这周的建议' }), tips) : null)
+      : el('section', { class: 'card s12 report-head' }, el('h2', { text: r.headline }), tips);
 
     const rec = r.recovery, load = r.load;
     const tilesRow = el('div', { class: 'tiles four' },

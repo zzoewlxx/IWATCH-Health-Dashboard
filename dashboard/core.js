@@ -176,9 +176,10 @@
 
   // ---------------------------------------------------------------- theme
   let themeCache = null;
+  /** read from <body>: each page (its film) can set its own colours there */
   function theme() {
     if (themeCache) return themeCache;
-    const cs = getComputedStyle(document.documentElement);
+    const cs = getComputedStyle(document.body);
     const v = (name) => cs.getPropertyValue(name).trim();
     themeCache = {
       surface: v('--surface'), ink: v('--ink'), ink2: v('--ink-2'), muted: v('--muted'),

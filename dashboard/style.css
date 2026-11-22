@@ -1,74 +1,5 @@
-/* 健康数据看板 — colours are role tokens; the dark values are their own steps, not a flip. */
+/* 健康数据看板 — always the night cut. Colours are role tokens; each page (films.css) sets its own. */
 :root {
-  color-scheme: light;
-  --plane: #f9f9f7;
-  --surface: #fcfcfb;
-  --ink: #0b0b0b;
-  --ink-2: #52514e;
-  --muted: #898781;
-  --grid: #e1e0d9;
-  --axis: #c3c2b7;
-  --border: rgba(11, 11, 11, 0.10);
-  --wash: rgba(11, 11, 11, 0.04);
-  --neutral-1: #898781;          /* de-emphasis mark */
-  --neutral-2: #c3c2b7;
-  --band: rgba(11, 11, 11, 0.045);
-
-  --series-1: #2a78d6;
-  --series-2: #eb6834;
-  --series-3: #1baf7a;
-  --series-4: #eda100;
-  --series-5: #e87ba4;
-  --series-1-soft: #9ec5f4;      /* context bars behind an average line */
-  --track: #cde2fb;              /* meter track: lighter step of the fill's ramp */
-
-  /* ordinal ramps (one hue, light -> dark) */
-  --stage-rem: #86b6ef;
-  --stage-core: #2a78d6;
-  --stage-deep: #104281;
-  --stage-awake: #eb6834;
-  --zone-1: #86b6ef; --zone-2: #5598e7; --zone-3: #2a78d6; --zone-4: #1c5cab; --zone-5: #0d366b;
-  --seq-lo: #cde2fb; --seq-mid: #3987e5; --seq-hi: #0d366b;
-
-  --good: #006300;
-  --bad: #d03b3b;
-  --status-good: #0ca30c;
-  --status-warning: #fab219;
-  --status-serious: #ec835a;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --plane: #0d0d0d;
-    --surface: #1a1a19;
-    --ink: #f0efec;
-    --ink-2: #c3c2b7;
-    --muted: #898781;
-    --grid: #2c2c2a;
-    --axis: #383835;
-    --border: rgba(255, 255, 255, 0.10);
-    --wash: rgba(255, 255, 255, 0.05);
-    --neutral-1: #898781;
-    --neutral-2: #52514e;
-    --band: rgba(255, 255, 255, 0.06);
-    --series-1: #3987e5;
-    --series-2: #d95926;
-    --series-3: #199e70;
-    --series-4: #c98500;
-    --series-5: #d55181;
-    --series-1-soft: #1c5cab;
-    --track: #184f95;
-    --stage-rem: #86b6ef;
-    --stage-core: #3987e5;
-    --stage-deep: #184f95;
-    --stage-awake: #d95926;
-    --zone-1: #184f95; --zone-2: #256abf; --zone-3: #5598e7; --zone-4: #86b6ef; --zone-5: #cde2fb;
-    --seq-lo: #0d366b; --seq-mid: #3987e5; --seq-hi: #cde2fb;
-    --good: #0ca30c;
-    --bad: #e66767;
-  }
-}
-:root[data-theme="dark"] {
   color-scheme: dark;
   --plane: #0d0d0d;
   --surface: #1a1a19;
@@ -97,8 +28,10 @@
   --seq-lo: #0d366b; --seq-mid: #3987e5; --seq-hi: #cde2fb;
   --good: #0ca30c;
   --bad: #e66767;
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
 }
-
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body {
@@ -318,7 +251,7 @@ td .pill { margin-right: 4px; }
 
 /* ---- printing the summary ---- */
 @media print {
-  :root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
+  :root {
     color-scheme: light;
     --plane: #fff; --surface: #fff; --ink: #000; --ink-2: #333; --muted: #555; --grid: #ccc; --axis: #999;
     --border: rgba(0, 0, 0, 0.25); --wash: transparent; --status-good: #0a7a0a; --status-warning: #a86b00;
@@ -352,160 +285,16 @@ table.status td { padding-top: 9px; padding-bottom: 9px; }
 .segbar { display: flex; gap: 2px; height: 28px; margin-top: 14px; }
 .segbar > div { border-radius: 4px; min-width: 2px; padding: 0 8px; font-size: 12px; line-height: 28px; white-space: nowrap; overflow: visible; }
 
-/* ---- headphone page: a Hong Kong film, by day and by night. The whole screen changes on this tab.
-        Day (light theme): a sunny afternoon shot bright: warm white, butter yellow, jade green, vermilion.
-        Night (dark theme): neon red, tungsten amber, fluorescent teal on green-black.
-        Every colour below is a token, so the two films share one set of rules. ---- */
+/* ---- headphone page: a Hong Kong night film (重庆森林). The whole screen changes on this tab:
+        neon red, tungsten amber and fluorescent teal on green-black. Every colour below is a token. ---- */
 body[data-tab="hearing"] {
   --hk-serif: "Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", "SimSun", serif;
   --hk-cond: "Bahnschrift", "DIN Condensed", "Oswald", "Arial Narrow", sans-serif;
   --hk-mono: Consolas, "SF Mono", Menlo, "Courier New", monospace;
-  --hk-yellow: #f2cf5b;                       /* subtitles, on the dark letterbox bars in both films */
+  --hk-yellow: #f2cf5b;
   --hk-sub-en: rgba(239, 230, 210, 0.78);
-  /* day: a sunny afternoon shot bright. Warm white paper, a butter-yellow screen between black bars,
-     jade green for the data, deep blue for the night, vermilion for the sign and the peaks. No grain, no haze. */
-  --hk-mode: day;
-  color-scheme: light;
-  --hk-backdrop:
-    radial-gradient(1600px 560px at 50% -220px, rgba(255, 222, 120, 0.5), transparent 72%),
-    #faf7ea;
-  --hk-grain-opacity: 0;
-  --hk-grain-blend: normal;
-  --hk-ink: #17251c;
-  --hk-ink-2: rgba(23, 37, 28, 0.8);
-  --hk-muted: rgba(23, 37, 28, 0.6);
-  --hk-line: rgba(23, 37, 28, 0.16);
-  --hk-line-2: rgba(23, 37, 28, 0.1);
-  --hk-panel: #fffdf6;
-  --hk-panel-2: #fffaea;
-  --hk-hover: rgba(23, 37, 28, 0.04);
-  --hk-corner: #17251c;
-  --hk-red: #e85a35;
-  --hk-red-text: #c8442a;
-  --hk-red-wash: rgba(232, 90, 53, 0.08);
-  --hk-red-line: rgba(232, 90, 53, 0.8);
-  --hk-amber: #f2b705;
-  --hk-amber-num: #14683a;
-  --hk-series-a: #14683a;
-  --hk-series-b: #2a4f9e;
-  --hk-hi: #c8442a;
-  --hk-glow-red: none;
-  --hk-glow-sm: none;
-  --hk-glow-amber: none;
-  --hk-num: #17251c;
-  --hk-num-shadow: none;
-  --hk-sign-fg: #fffdf6;
-  --hk-sign-glow: none;
-  --hk-sign-border: #e85a35;
-  --hk-sign-bg: #e85a35;
-  --hk-sign-shadow: inset 0 0 0 4px #e85a35, inset 0 0 0 5px rgba(255, 253, 246, 0.8);
-  --hk-sign-sub: rgba(255, 253, 246, 0.85);
-  --hk-neon: #e85a35;
-  --hk-neon-glow: none;
-  --hk-flicker: none;
-  --hk-bar: #16211b;
-  --hk-bar-text: rgba(255, 246, 220, 0.7);
-  --hk-frame-bg: radial-gradient(760px 420px at 78% 18%, rgba(255, 255, 255, 0.72), transparent 70%), #ffeba0;
-  --hk-sprocket: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='22' height='9'><rect x='5' y='0.5' width='12' height='8' rx='2' fill='%23ffffff' fill-opacity='0.95'/></svg>");
-  --hk-vo-ink: #17251c;
-  --hk-vo-mark: linear-gradient(transparent 58%, rgba(255, 210, 46, 0.7) 58%);
-  --hk-vo-en: rgba(23, 37, 28, 0.6);
-  --hk-controls: rgba(250, 247, 234, 0.92);
-  --hk-th: #f7f3e1;
-  --hk-row-hover: rgba(242, 183, 5, 0.1);
-  --hk-cal-hover: 0 0 0 1px #17251c;
-  --hk-cal-on: 0 0 0 2px #e85a35;
-  --hk-cal-side: #fffaea;
-  --hk-week-fill: linear-gradient(180deg, #f2b705, #f9d55b);
-  --hk-week-glow: none;
-  --hk-clock-day: none;
-  --hk-clock-night: none;
-  --hk-clock-peak: none;
-  --hk-tube: linear-gradient(90deg, #14683a 0%, #7cbf4a 30%, #f5c518 58%, #f28c28 78%, #e85a35 100%);
-  --hk-tube-glow: none;
-  --hk-knob: #ffffff;
-  --hk-knob-ring: 0 0 0 3px #17251c;
-  --hk-shadow: 0 18px 44px rgba(23, 37, 28, 0.1);
-  --hk-focus: #c8442a;
-  color: var(--hk-ink);
-  background: var(--hk-backdrop);
-  background-attachment: fixed;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) body[data-tab="hearing"] {
-    --hk-mode: night;
-    color-scheme: dark;
-    --hk-backdrop:
-      radial-gradient(ellipse at 50% 35%, transparent 55%, rgba(0, 0, 0, 0.55) 100%),
-      radial-gradient(1100px 700px at 6% -8%, rgba(30, 130, 88, 0.3), transparent 62%),
-      radial-gradient(900px 640px at 102% 8%, rgba(196, 22, 40, 0.24), transparent 60%),
-      radial-gradient(1000px 760px at 55% 112%, rgba(255, 160, 40, 0.12), transparent 62%),
-      #0b0f0e;
-    --hk-grain-opacity: 0.08;
-    --hk-grain-blend: overlay;
-    --hk-ink: #efe6d2;
-    --hk-ink-2: rgba(239, 230, 210, 0.78);
-    --hk-muted: rgba(239, 230, 210, 0.6);
-    --hk-line: rgba(239, 230, 210, 0.16);
-    --hk-line-2: rgba(239, 230, 210, 0.09);
-    --hk-panel: rgba(239, 230, 210, 0.035);
-    --hk-panel-2: rgba(239, 230, 210, 0.02);
-    --hk-hover: rgba(239, 230, 210, 0.05);
-    --hk-corner: rgba(239, 230, 210, 0.78);
-    --hk-red: #ff4141;
-    --hk-red-text: #ff8a8a;
-    --hk-red-wash: rgba(255, 65, 65, 0.07);
-    --hk-red-line: rgba(255, 65, 65, 0.7);
-    --hk-amber: #ffb52e;
-    --hk-amber-num: #ffb52e;
-    --hk-series-a: #ffb52e;
-    --hk-series-b: #3fd6c6;
-    --hk-hi: #ffecec;
-    --hk-glow-red: 0 0 4px rgba(255, 96, 96, 0.95), 0 0 14px rgba(255, 40, 40, 0.7), 0 0 34px rgba(255, 30, 30, 0.4);
-    --hk-glow-sm: 0 0 10px rgba(255, 65, 65, 0.75);
-    --hk-glow-amber: 0 0 18px rgba(255, 181, 46, 0.25);
-    --hk-num: #fff4dc;
-    --hk-num-shadow: -7px 0 rgba(255, 181, 46, 0.22), -14px 0 rgba(255, 181, 46, 0.09), 0 0 34px rgba(255, 181, 46, 0.25);
-    --hk-sign-fg: #fff1f1;
-    --hk-neon: #fff1f1;
-    --hk-neon-glow: 0 0 4px rgba(255, 96, 96, 0.95), 0 0 14px rgba(255, 40, 40, 0.7), 0 0 34px rgba(255, 30, 30, 0.4);
-    --hk-sign-glow: 0 0 4px rgba(255, 96, 96, 0.95), 0 0 14px rgba(255, 40, 40, 0.7), 0 0 34px rgba(255, 30, 30, 0.4);
-    --hk-sign-border: rgba(255, 92, 92, 0.95);
-    --hk-sign-bg: transparent;
-    --hk-sign-shadow: 0 0 10px rgba(255, 65, 65, 0.65), inset 0 0 12px rgba(255, 65, 65, 0.45);
-    --hk-sign-sub: #ffb3b3;
-    --hk-flicker: hk-flicker 9s infinite;
-    --hk-bar: #000000;
-    --hk-bar-text: rgba(239, 230, 210, 0.6);
-    --hk-frame-bg: radial-gradient(640px 320px at 78% 30%, rgba(255, 170, 50, 0.13), transparent 70%), radial-gradient(520px 320px at 12% 85%, rgba(30, 140, 95, 0.16), transparent 70%), #070a09;
-    --hk-sprocket: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='22' height='9'><rect x='5' y='0.5' width='12' height='8' rx='2' fill='%23efe6d2' fill-opacity='0.16'/></svg>");
-    --hk-vo-ink: #f2cf5b;
-    --hk-vo-mark: none;
-    --hk-vo-en: rgba(239, 230, 210, 0.6);
-    --hk-controls: rgba(9, 12, 11, 0.86);
-    --hk-th: #0d1211;
-    --hk-row-hover: rgba(255, 181, 46, 0.06);
-    --hk-cal-hover: 0 0 12px rgba(255, 181, 46, 0.6);
-    --hk-cal-on: 0 0 0 2px #ff4141, 0 0 14px rgba(255, 65, 65, 0.8);
-    --hk-cal-side: rgba(255, 181, 46, 0.04);
-    --hk-week-fill: linear-gradient(180deg, rgba(255, 181, 46, 0.95), rgba(255, 181, 46, 0.35));
-    --hk-week-glow: 0 0 12px rgba(255, 181, 46, 0.35);
-    --hk-clock-day: drop-shadow(0 0 3px rgba(255, 181, 46, 0.6));
-    --hk-clock-night: drop-shadow(0 0 4px rgba(63, 214, 198, 0.7));
-    --hk-clock-peak: drop-shadow(0 0 7px rgba(255, 65, 65, 1));
-    --hk-tube: linear-gradient(90deg, #3fd6c6 0%, #8fe39a 30%, #ffd166 58%, #ff9a3c 78%, #ff4141 100%);
-    --hk-tube-glow: 0 0 14px rgba(255, 181, 46, 0.35);
-    --hk-knob: #fff4dc;
-    --hk-knob-ring: 0 0 0 4px rgba(11, 15, 14, 0.9), 0 0 18px rgba(255, 214, 120, 0.9);
-    --hk-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
-    --hk-focus: #ffb52e;
-  }
-}
-:root[data-theme="dark"] body[data-tab="hearing"] {
-  --hk-mode: night;
   color-scheme: dark;
-  --hk-backdrop:
-    radial-gradient(ellipse at 50% 35%, transparent 55%, rgba(0, 0, 0, 0.55) 100%),
+  --hk-backdrop: radial-gradient(ellipse at 50% 35%, transparent 55%, rgba(0, 0, 0, 0.55) 100%),
     radial-gradient(1100px 700px at 6% -8%, rgba(30, 130, 88, 0.3), transparent 62%),
     radial-gradient(900px 640px at 102% 8%, rgba(196, 22, 40, 0.24), transparent 60%),
     radial-gradient(1000px 760px at 55% 112%, rgba(255, 160, 40, 0.12), transparent 62%),
@@ -536,13 +325,13 @@ body[data-tab="hearing"] {
   --hk-num: #fff4dc;
   --hk-num-shadow: -7px 0 rgba(255, 181, 46, 0.22), -14px 0 rgba(255, 181, 46, 0.09), 0 0 34px rgba(255, 181, 46, 0.25);
   --hk-sign-fg: #fff1f1;
-  --hk-neon: #fff1f1;
-  --hk-neon-glow: 0 0 4px rgba(255, 96, 96, 0.95), 0 0 14px rgba(255, 40, 40, 0.7), 0 0 34px rgba(255, 30, 30, 0.4);
   --hk-sign-glow: 0 0 4px rgba(255, 96, 96, 0.95), 0 0 14px rgba(255, 40, 40, 0.7), 0 0 34px rgba(255, 30, 30, 0.4);
   --hk-sign-border: rgba(255, 92, 92, 0.95);
   --hk-sign-bg: transparent;
   --hk-sign-shadow: 0 0 10px rgba(255, 65, 65, 0.65), inset 0 0 12px rgba(255, 65, 65, 0.45);
   --hk-sign-sub: #ffb3b3;
+  --hk-neon: #fff1f1;
+  --hk-neon-glow: 0 0 4px rgba(255, 96, 96, 0.95), 0 0 14px rgba(255, 40, 40, 0.7), 0 0 34px rgba(255, 30, 30, 0.4);
   --hk-flicker: hk-flicker 9s infinite;
   --hk-bar: #000000;
   --hk-bar-text: rgba(239, 230, 210, 0.6);
@@ -568,6 +357,9 @@ body[data-tab="hearing"] {
   --hk-knob-ring: 0 0 0 4px rgba(11, 15, 14, 0.9), 0 0 18px rgba(255, 214, 120, 0.9);
   --hk-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
   --hk-focus: #ffb52e;
+  color: var(--hk-ink);
+  background: var(--hk-backdrop);
+  background-attachment: fixed;
 }
 /* film grain over everything (it never takes a click) */
 body[data-tab="hearing"]::after {
@@ -833,7 +625,7 @@ body[data-tab="hearing"] .tab[aria-selected="true"] { color: var(--hk-hi); borde
 .hk .tablewrap { border-top: 0; }
 .hk-foot { margin: 40px 0 0; padding-top: 16px; border-top: 1px solid var(--hk-line-2); font-size: 12.5px; line-height: 1.7; color: var(--hk-muted); }
 
-/* chart tooltips on the night stage (by day they use the dashboard's own light tooltip colours) */
+/* chart tooltips on the night stage */
 .tt.on-dark { color: #efe6d2; }
 .tt.on-dark .h, .tt.on-dark .r .n { color: rgba(239, 230, 210, 0.72); }
 .tt.on-dark .f { color: rgba(239, 230, 210, 0.55); }

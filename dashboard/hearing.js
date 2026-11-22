@@ -17,27 +17,15 @@
   const REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const NIGHT = [22, 23, 0, 1, 2, 3, 4];                          // "夜里": 22:00 to 05:00
   const WHO_TABLE = [[80, '40 小时'], [85, '12 小时 30 分'], [90, '4 小时'], [95, '1 小时 15 分'], [100, '20 分钟']];
-  // Two films, picked by the stylesheet (--hk-mode): night is neon red, tungsten amber and fluorescent
-  // teal on green-black; day is a sunny afternoon shot bright: jade green, deep blue and vermilion on warm
-  // white, flat colour instead of neon. `main` is the listening series, `alt` the night / second series.
-  // The day trio was checked for colour-blind separation (protan ΔE 8.2) and 3:1 contrast on the paper.
-  const PALETTES = {
-    night: { mode: 'night', ink: '#efe6d2', muted: 'rgba(239,230,210,0.6)', grid: 'rgba(239,230,210,0.09)', axis: 'rgba(239,230,210,0.25)',
-      faint: 'rgba(239,230,210,0.03)', ring: 'rgba(239,230,210,0.16)', connector: 'rgba(239,230,210,0.32)', band: 'rgba(239,230,210,0.05)',
-      red: '#ff4141', main: '#ffb52e', alt: '#3fd6c6', paper: '#0b0f0e', refLabel: '#ff9a9a',
-      glow: 1, mainGlow: 'rgba(255,181,46,0.8)', redGlow: 'rgba(255,65,65,1)', area: 'rgba(255,181,46,0.26)', stripArea: 'rgba(255,181,46,0.26)',
-      tipBg: 'rgba(8, 11, 10, 0.94)', tipBorder: 'rgba(239,230,210,0.3)', tipDark: true,
-      levels: ['rgba(239,230,210,0.05)', 'rgba(255,181,46,0.18)', 'rgba(255,181,46,0.34)', 'rgba(255,181,46,0.54)', 'rgba(255,190,70,0.78)', 'rgba(255,214,120,0.98)'],
-      art: { line: '#a8f5ec', accent: '#ff4141', sign: '#ff6a6a', waves: '#ffb52e' } },
-    day: { mode: 'day', ink: '#17251c', muted: 'rgba(23,37,28,0.6)', grid: 'rgba(23,37,28,0.08)', axis: 'rgba(23,37,28,0.26)',
-      faint: 'rgba(255,253,246,0.6)', ring: 'rgba(23,37,28,0.16)', connector: 'rgba(23,37,28,0.26)', band: 'rgba(23,37,28,0.045)',
-      red: '#e85a35', main: '#14683a', alt: '#2a4f9e', paper: '#fffdf6', refLabel: '#c8442a',
-      glow: 0, mainGlow: 'rgba(0,0,0,0)', redGlow: 'rgba(0,0,0,0)', area: 'rgba(20,104,58,0.14)', stripArea: 'rgba(255,255,255,0.85)',
-      tipBg: 'rgba(255, 253, 246, 0.98)', tipBorder: 'rgba(23,37,28,0.18)', tipDark: false,
-      levels: ['rgba(23,37,28,0.06)', '#74c481', '#53ab63', '#3c914e', '#2c783d', '#246131'],
-      art: { line: '#14683a', accent: '#e85a35', sign: '#14683a', waves: '#e85a35' } },
-  };
-  let C = PALETTES.night;
+  // The night film: neon red, tungsten amber and fluorescent teal on green-black.
+  // `main` is the listening series, `alt` the night / second series.
+  const C = { ink: '#efe6d2', muted: 'rgba(239,230,210,0.6)', grid: 'rgba(239,230,210,0.09)', axis: 'rgba(239,230,210,0.25)',
+    faint: 'rgba(239,230,210,0.03)', ring: 'rgba(239,230,210,0.16)', connector: 'rgba(239,230,210,0.32)', band: 'rgba(239,230,210,0.05)',
+    red: '#ff4141', main: '#ffb52e', alt: '#3fd6c6', paper: '#0b0f0e', refLabel: '#ff9a9a',
+    glow: 1, mainGlow: 'rgba(255,181,46,0.8)', redGlow: 'rgba(255,65,65,1)', area: 'rgba(255,181,46,0.26)', stripArea: 'rgba(255,181,46,0.26)',
+    tipBg: 'rgba(8, 11, 10, 0.94)', tipBorder: 'rgba(239,230,210,0.3)', tipDark: true,
+    levels: ['rgba(239,230,210,0.05)', 'rgba(255,181,46,0.18)', 'rgba(255,181,46,0.34)', 'rgba(255,181,46,0.54)', 'rgba(255,190,70,0.78)', 'rgba(255,214,120,0.98)'],
+    art: { line: '#a8f5ec', accent: '#ff4141', sign: '#ff6a6a', waves: '#ffb52e' } };
   const MONO = 'Consolas, "SF Mono", Menlo, "Courier New", monospace';
   /** what the reader has picked on this page; kept while switching tabs */
   const page = { dev: -1, weekday: -1, vol: 'level', test: null, cal: null, shown: null };
@@ -98,12 +86,7 @@
       formatter: (ps) => { const n = render(ps); if (n && n.classList && C.tipDark) n.classList.add('on-dark'); return n || ''; },
     };
   }
-  let axisText = { color: C.muted, fontSize: 11, fontFamily: MONO };
-  /** follow the stylesheet: day in the light theme, night in the dark one */
-  function usePalette() {
-    C = PALETTES[getComputedStyle(document.body).getPropertyValue('--hk-mode').trim() === 'day' ? 'day' : 'night'];
-    axisText = { color: C.muted, fontSize: 11, fontFamily: MONO };
-  }
+  const axisText = { color: C.muted, fontSize: 11, fontFamily: MONO };
   /** replace a panel in place, letting go of any chart inside the old one */
   function swap(oldNode, newNode) {
     oldNode.querySelectorAll('div').forEach((n) => { const c = window.echarts.getInstanceByDom(n); if (c) c.dispose(); });
@@ -922,7 +905,6 @@
       return [el('div', { class: 'hk' }, el('section', { class: 'hk-panel' },
         el('p', { class: 'hint', text: '导出里没有耳机音量记录。用 AirPods 或其他耳机在 iPhone 上听歌、看视频时，健康 App 会自动记录耳机音量。' })))];
     }
-    usePalette();
     if (page.dev >= DEV.length) page.dev = -1;
     const S = selectionFor(page.dev), R = rangeFor(S, ui);
     const st = stats(S, R.a, R.b);

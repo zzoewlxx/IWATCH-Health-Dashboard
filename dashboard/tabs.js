@@ -11,10 +11,10 @@
   // ------------------------------------------------------------------ state
   const PRESETS = [['30', '30 天'], ['90', '90 天'], ['180', '半年'], ['365', '1 年'], ['all', '全部']];
   const GRANS = [['day', '日'], ['week', '周'], ['month', '月']];
-  const state = { tab: (H.reports || []).length ? 'report' : 'overview', a: 0, b: N - 1, preset: '90', gran: 'day', theme: 'auto', day: null, report: null };
+  const state = { tab: (H.reports || []).length ? 'report' : 'overview', a: 0, b: N - 1, preset: '90', gran: 'day', day: null, report: null };
   const store = {
     load() { try { return JSON.parse(localStorage.getItem('hd.state') || '{}'); } catch (e) { return {}; } },
-    save() { try { localStorage.setItem('hd.state', JSON.stringify({ preset: state.preset, gran: state.gran, theme: state.theme })); } catch (e) { /* private mode */ } },
+    save() { try { localStorage.setItem('hd.state', JSON.stringify({ preset: state.preset, gran: state.gran })); } catch (e) { /* private mode */ } },
   };
   function applyPreset(p, keepGran) {
     state.preset = p;
@@ -121,7 +121,10 @@
     return root;
   }
   const grid = (ctx, specs) => el('div', { class: 'grid' }, specs.map((s) => card(s, ctx)));
-  const section = (title) => el('h2', { class: 'section-title', text: title });
+  let sceneNo = 0;                                 // section headings count up on each page, like scenes
+  /** a section heading: a scene in the page's film when it has one */
+  const section = (title) => (HD.filmScene && HD.film(state.tab) && HD.filmScene(state.tab, title, ++sceneNo))
+    || el('h2', { class: 'section-title', text: title });
   /** what the weekly report (report.js) needs from this file */
   const ui = {
     state, card, section, gotoDay,
@@ -754,9 +757,15 @@
     live = [];
     main.textContent = '';
     const tab = TABS.find((t) => t.id === state.tab) || TABS[0];
-    document.body.dataset.tab = tab.id;                // lets a page restyle the whole screen (the headphone page does)
+    document.body.dataset.tab = tab.id;                // lets a page restyle the whole screen: every page is its own film
+    const film = HD.film ? HD.film(tab.id) : null;
+    if (film) document.body.dataset.film = tab.id; else delete document.body.dataset.film;
+    HD.resetTheme();                                   // chart colours follow the page
     const ctx = context();
-    for (const node of tab.render(ctx)) main.append(node);
+    sceneNo = 0;
+    const hero = film ? HD.filmHero(tab.id, ctx, ui) : null;
+    if (hero) main.append(hero);
+    for (const node of tab.render(ctx)) if (node) main.append(node);
     document.getElementById('filters').style.display = tab.noFilters ? 'none' : '';
     requestAnimationFrame(() => {
       main.style.minHeight = '';
@@ -772,28 +781,20 @@
     document.getElementById('dateFrom').value = DAYS[state.a];
     document.getElementById('dateTo').value = DAYS[state.b];
     document.getElementById('spanInfo').textContent = `${state.b - state.a + 1} 天` + (state.gran === 'day' ? ' · 点击图上某一天可查看单日详情' : '');
-    document.getElementById('themeBtn').textContent = '外观：' + { auto: '跟随系统', light: '浅色', dark: '深色' }[state.theme];
-  }
-  function applyTheme() {
-    if (state.theme === 'auto') document.documentElement.removeAttribute('data-theme');
-    else document.documentElement.setAttribute('data-theme', state.theme);
-    HD.resetTheme();
   }
 
   // ------------------------------------------------------------------ boot
-  // ?range=365&gran=week&theme=dark in the address bar overrides the remembered view
+  // ?range=365&gran=week in the address bar overrides the remembered view (every page is a night film; there is no theme switch)
   const saved = store.load();
   const qs = new URLSearchParams(location.search);
-  for (const k of ['range', 'gran', 'theme']) {
+  for (const k of ['range', 'gran']) {
     if (qs.get(k)) saved[k === 'range' ? 'preset' : k] = qs.get(k);
   }
-  if (['auto', 'light', 'dark'].includes(saved.theme)) state.theme = saved.theme;
   applyPreset(PRESETS.some((p) => p[0] === saved.preset) ? saved.preset : '90', false);
   if (GRANS.some((g) => g[0] === saved.gran)) state.gran = saved.gran;
   if (TABS.some((t) => t.id === location.hash.slice(1))) state.tab = location.hash.slice(1);
   if (/^\d{4}-\d{2}-\d{2}$/.test(qs.get('day') || '')) state.day = HD.indexOfDate(qs.get('day'));
   if (/^\d{4}-\d{2}-\d{2}$/.test(qs.get('week') || '')) state.report = HD.reportIndex(qs.get('week'));
-  applyTheme();
 
   const m = H.meta;
   document.getElementById('subtitle').textContent =
@@ -826,13 +827,6 @@
   };
   from.addEventListener('change', onDate);
   to.addEventListener('change', onDate);
-  document.getElementById('themeBtn').addEventListener('click', () => {
-    state.theme = { auto: 'light', light: 'dark', dark: 'auto' }[state.theme];
-    applyTheme(); store.save(); renderTab();
-  });
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-    if (state.theme === 'auto') { HD.resetTheme(); renderTab(); }
-  });
   window.addEventListener('hashchange', () => {
     const id = location.hash.slice(1);
     if (id !== state.tab && TABS.some((t) => t.id === id)) { state.tab = id; renderTab(); }

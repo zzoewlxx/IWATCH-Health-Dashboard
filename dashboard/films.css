@@ -1,0 +1,697 @@
+/* 每页一部港片 — every page is its own Hong Kong film.
+   films.js builds the title cards and scene headings; this file gives each page its colours, type and props.
+   Each film sets the dashboard's own colour tokens on its page, so every chart follows. Every page is a
+   night film; there is no day cut.
+   Chart colours were generated and checked with the dataviz palette validator (lightness band, chroma,
+   colour-blind separation, contrast) against each page's dark surface.
+   Screen only: printing (the summary for a doctor) keeps the plain print palette in style.css. */
+@media screen {
+
+/* ================================================================== colour tokens, film by film (generated) */
+body[data-tab="report"] {
+  color-scheme: dark;
+  --plane: #11131d; --surface: #191c29; --ink: #f7ede7; --ink-2: #b6b1b1; --muted: #88858a;
+  --grid: #333540; --axis: #4b4b55; --border: rgba(247, 237, 231, 0.12); --wash: rgba(247, 237, 231, 0.06); --band: rgba(247, 237, 231, 0.07);
+  --neutral-1: #7a787e; --neutral-2: #53535d;
+  --series-1: #da386e; --series-2: #0067df; --series-3: #00ab89; --series-4: #d27900; --series-5: #8b44c9;
+  --series-1-soft: #783848; --track: #49222c;
+  --stage-rem: #abcdff; --stage-core: #5992e7; --stage-deep: #245bab; --stage-awake: #ec5480;
+  --zone-1: #911f46; --zone-2: #b24161; --zone-3: #d5607e; --zone-4: #f87f9c; --zone-5: #ffb2c1;
+  --seq-lo: #5a0022; --seq-mid: #bf5b71; --seq-hi: #ffd0d7;
+  --good: #5bc663; --bad: #f47b74;
+}
+body[data-tab="overview"] {
+  color-scheme: dark;
+  --plane: #0b1115; --surface: #121a20; --ink: #e3ecf1; --ink-2: #a6afb5; --muted: #7e878d;
+  --grid: #2a3339; --axis: #414950; --border: rgba(227, 236, 241, 0.12); --wash: rgba(227, 236, 241, 0.06); --band: rgba(227, 236, 241, 0.07);
+  --neutral-1: #6d767c; --neutral-2: #485157;
+  --series-1: #006fa9; --series-2: #cb7e00; --series-3: #00a5b3; --series-4: #d02b31; --series-5: #764dd6;
+  --series-1-soft: #17557d; --track: #0f334c;
+  --stage-rem: #97d2ff; --stage-core: #2d9be0; --stage-deep: #006398; --stage-awake: #f05846;
+  --zone-1: #005887; --zone-2: #0075b2; --zone-3: #0994de; --zone-4: #43b4ff; --zone-5: #97d2ff;
+  --seq-lo: #003346; --seq-mid: #008cb9; --seq-hi: #b5e6ff;
+  --good: #5bc663; --bad: #f47b74;
+}
+body[data-tab="activity"] {
+  color-scheme: dark;
+  --plane: #0a0b1f; --surface: #11132a; --ink: #eaecff; --ink-2: #aaadc3; --muted: #7c7f96;
+  --grid: #292c44; --axis: #41445c; --border: rgba(234, 236, 255, 0.12); --wash: rgba(234, 236, 255, 0.06); --band: rgba(234, 236, 255, 0.07);
+  --neutral-1: #6f7289; --neutral-2: #494c64;
+  --series-1: #325bda; --series-2: #00a4bb; --series-3: #e06d00; --series-4: #c52c7c; --series-5: #61a100;
+  --series-1-soft: #384d81; --track: #222f4f;
+  --stage-rem: #b2caff; --stage-core: #6a8ee8; --stage-deep: #3857ac; --stage-awake: #e5559a;
+  --zone-1: #2b4aa4; --zone-2: #4568c5; --zone-3: #6187e7; --zone-4: #83a8ff; --zone-5: #b2caff;
+  --seq-lo: #0f246e; --seq-mid: #5b7cce; --seq-hi: #cfdeff;
+  --good: #5bc663; --bad: #f47b74;
+}
+body[data-tab="sleep"] {
+  color-scheme: dark;
+  --plane: #0e0f12; --surface: #16171b; --ink: #eceef1; --ink-2: #aeafb3; --muted: #808286;
+  --grid: #2f3034; --axis: #46474b; --border: rgba(236, 238, 241, 0.12); --wash: rgba(236, 238, 241, 0.06); --band: rgba(236, 238, 241, 0.07);
+  --neutral-1: #737579; --neutral-2: #4e4f53;
+  --series-1: #00999d; --series-2: #f3572a; --series-3: #8347cf; --series-4: #be7c00; --series-5: #0066c8;
+  --series-1-soft: #005c5e; --track: #00383a;
+  --stage-rem: #1be5ee; --stage-core: #00a6ad; --stage-deep: #006b70; --stage-awake: #ef5b33;
+  --zone-1: #005f63; --zone-2: #007e84; --zone-3: #00a0a6; --zone-4: #00c2ca; --zone-5: #00e6ef;
+  --seq-lo: #003538; --seq-mid: #009298; --seq-hi: #61f7ff;
+  --good: #5bc663; --bad: #f47b74;
+}
+body[data-tab="heart"] {
+  color-scheme: dark;
+  --plane: #0c0c0c; --surface: #151515; --ink: #ededed; --ink-2: #aeaeae; --muted: #808080;
+  --grid: #2e2e2e; --axis: #454545; --border: rgba(237, 237, 237, 0.12); --wash: rgba(237, 237, 237, 0.06); --band: rgba(237, 237, 237, 0.07);
+  --neutral-1: #737373; --neutral-2: #4d4d4d;
+  --series-1: #d02b34; --series-2: #0068a7; --series-3: #00a8a2; --series-4: #be7c00; --series-5: #8c43c8;
+  --series-1-soft: #7a3a37; --track: #4a2321;
+  --stage-rem: #9dd1ff; --stage-core: #3b99e2; --stage-deep: #00629e; --stage-awake: #f05656;
+  --zone-1: #942126; --zone-2: #b64242; --zone-3: #d8625e; --zone-4: #fb817c; --zone-5: #ffb4af;
+  --seq-lo: #5c000f; --seq-mid: #c25d5c; --seq-hi: #ffd1cf;
+  --good: #5bc663; --bad: #f47b74;
+}
+body[data-tab="workouts"] {
+  color-scheme: dark;
+  --plane: #0d0f12; --surface: #14171b; --ink: #ece9e2; --ink-2: #adaca9; --muted: #848483;
+  --grid: #2d2f33; --axis: #444648; --border: rgba(236, 233, 226, 0.12); --wash: rgba(236, 233, 226, 0.06); --band: rgba(236, 233, 226, 0.07);
+  --neutral-1: #727373; --neutral-2: #4c4e50;
+  --series-1: #4057da; --series-2: #f25820; --series-3: #00ac7d; --series-4: #c48300; --series-5: #af2f9b;
+  --series-1-soft: #3d4c81; --track: #252e4f;
+  --stage-rem: #b6c9ff; --stage-core: #718ce8; --stage-deep: #4055ac; --stage-awake: #ee5d2b;
+  --zone-1: #94221d; --zone-2: #b6443a; --zone-3: #d86357; --zone-4: #fb8274; --zone-5: #ffb5ab;
+  --seq-lo: #17226d; --seq-mid: #627ace; --seq-hi: #d1ddff;
+  --good: #5bc663; --bad: #f47b74;
+}
+body[data-tab="body"] {
+  color-scheme: dark;
+  --plane: #170a0d; --surface: #210f13; --ink: #f5e7dc; --ink-2: #b9a8a1; --muted: #917f7b;
+  --grid: #3b282a; --axis: #523f40; --border: rgba(245, 231, 220, 0.12); --wash: rgba(245, 231, 220, 0.06); --band: rgba(245, 231, 220, 0.07);
+  --neutral-1: #7f6d6b; --neutral-2: #5a4747;
+  --series-1: #007c59; --series-2: #c74dba; --series-3: #c68100; --series-4: #0078a9; --series-5: #cf284b;
+  --series-1-soft: #015f43; --track: #073a29;
+  --stage-rem: #60e7b4; --stage-core: #00ac7d; --stage-deep: #006f4f; --stage-awake: #a670f3;
+  --zone-1: #932035; --zone-2: #b54150; --zone-3: #d7606d; --zone-4: #fa808a; --zone-5: #ffb3b7;
+  --seq-lo: #003726; --seq-mid: #00976d; --seq-hi: #81f9c9;
+  --good: #5bc663; --bad: #f47b74;
+}
+body[data-tab="insights"] {
+  color-scheme: dark;
+  --plane: #0f0d14; --surface: #17141d; --ink: #f2e8d8; --ink-2: #b2aaa2; --muted: #88827f;
+  --grid: #302d34; --axis: #484348; --border: rgba(242, 232, 216, 0.12); --wash: rgba(242, 232, 216, 0.06); --band: rgba(242, 232, 216, 0.07);
+  --neutral-1: #767170; --neutral-2: #504b4f;
+  --series-1: #006bb9; --series-2: #e36a00; --series-3: #00a99b; --series-4: #d02940; --series-5: #a76ef8;
+  --series-1-soft: #24527f; --track: #16324d;
+  --stage-rem: #a2cfff; --stage-core: #4697e4; --stage-deep: #0060a6; --stage-awake: #e36a00;
+  --zone-1: #833b00; --zone-2: #ad5000; --zone-3: #d26c28; --zone-4: #f58b4b; --zone-5: #ffb891;
+  --seq-lo: #002f56; --seq-mid: #3a84ca; --seq-hi: #c6e1ff;
+  --good: #5bc663; --bad: #f47b74;
+}
+body[data-tab="day"] {
+  color-scheme: dark;
+  --plane: #0b1712; --surface: #10201a; --ink: #eaf2ec; --ink-2: #abb6af; --muted: #7d8983;
+  --grid: #2a3933; --axis: #415049; --border: rgba(234, 242, 236, 0.12); --wash: rgba(234, 242, 236, 0.06); --band: rgba(234, 242, 236, 0.07);
+  --neutral-1: #707d76; --neutral-2: #495851;
+  --series-1: #007e49; --series-2: #9240c3; --series-3: #c68100; --series-4: #006bb9; --series-5: #d02b31;
+  --series-1-soft: #1a5e3a; --track: #113923;
+  --stage-rem: #6ce6ab; --stage-core: #23ac74; --stage-deep: #007048; --stage-awake: #da5ab6;
+  --zone-1: #006338; --zone-2: #00844d; --zone-3: #17a664; --zone-4: #47c682; --zone-5: #6ce7a1;
+  --seq-lo: #00381e; --seq-mid: #29975e; --seq-hi: #91f8ba;
+  --good: #5bc663; --bad: #f47b74;
+}
+body[data-tab="more"] {
+  color-scheme: dark;
+  --plane: #0b1424; --surface: #111d33; --ink: #eaf3ff; --ink-2: #abb6c6; --muted: #7d899b;
+  --grid: #2a374c; --axis: #414e63; --border: rgba(234, 243, 255, 0.12); --wash: rgba(234, 243, 255, 0.06); --band: rgba(234, 243, 255, 0.07);
+  --neutral-1: #707c8f; --neutral-2: #4a566b;
+  --series-1: #008cbc; --series-2: #d02c2e; --series-3: #c68100; --series-4: #8347cf; --series-5: #007f38;
+  --series-1-soft: #005777; --track: #043549;
+  --stage-rem: #87d6ff; --stage-core: #009fd6; --stage-deep: #00668b; --stage-awake: #f05751;
+  --zone-1: #005a7b; --zone-2: #0079a3; --zone-3: #0099cd; --zone-4: #08baf8; --zone-5: #87d6ff;
+  --seq-lo: #003347; --seq-mid: #008cbc; --seq-hi: #b7e6ff;
+  --good: #5bc663; --bad: #f47b74;
+}
+body[data-tab="summary"] {
+  color-scheme: dark;
+  --plane: #121517; --surface: #1a1e21; --ink: #e8ecee; --ink-2: #acb1b3; --muted: #85898c;
+  --grid: #323639; --axis: #484d50; --border: rgba(232, 236, 238, 0.12); --wash: rgba(232, 236, 238, 0.06); --band: rgba(232, 236, 238, 0.07);
+  --neutral-1: #74797b; --neutral-2: #505457;
+  --series-1: #00999f; --series-2: #ea5202; --series-3: #2564e0; --series-4: #c68100; --series-5: #c32e85;
+  --series-1-soft: #005c5f; --track: #00383b;
+  --stage-rem: #1be5ee; --stage-core: #00a6ad; --stage-deep: #006b70; --stage-awake: #ee5e23;
+  --zone-1: #005f63; --zone-2: #007e84; --zone-3: #00a0a6; --zone-4: #00c2ca; --zone-5: #00e6ef;
+  --seq-lo: #003538; --seq-mid: #009298; --seq-hi: #61f7ff;
+  --good: #5bc663; --bad: #f47b74;
+}
+body[data-tab="backtest"] {
+  color-scheme: dark;
+  --plane: #110e20; --surface: #19152c; --ink: #efeaff; --ink-2: #b1acc3; --muted: #88849b;
+  --grid: #322e46; --axis: #49455d; --border: rgba(239, 234, 255, 0.12); --wash: rgba(239, 234, 255, 0.06); --band: rgba(239, 234, 255, 0.07);
+  --neutral-1: #76728a; --neutral-2: #514d65;
+  --series-1: #7d4ad3; --series-2: #c68100; --series-3: #d02c2e; --series-4: #009eb1; --series-5: #007835;
+  --series-1-soft: #55447b; --track: #33294b;
+  --stage-rem: #cfbfff; --stage-core: #9a7edd; --stage-deep: #6648a2; --stage-awake: #b98a00;
+  --zone-1: #5c3a9a; --zone-2: #7858bb; --zone-3: #9576dc; --zone-4: #b495fe; --zone-5: #cfbfff;
+  --seq-lo: #361666; --seq-mid: #886ec4; --seq-hi: #e1d7ff;
+  --good: #5bc663; --bad: #f47b74;
+}
+body[data-tab="notes"] {
+  color-scheme: dark;
+  --plane: #0d0d0d; --surface: #161616; --ink: #ececec; --ink-2: #aeaeae; --muted: #858585;
+  --grid: #2f2f2f; --axis: #464646; --border: rgba(236, 236, 236, 0.12); --wash: rgba(236, 236, 236, 0.06); --band: rgba(236, 236, 236, 0.07);
+  --neutral-1: #737373; --neutral-2: #4e4e4e;
+  --series-1: #0066c8; --series-2: #d02f14; --series-3: #00a8a2; --series-4: #c68100; --series-5: #8646cd;
+  --series-1-soft: #2b5180; --track: #1a314e;
+  --stage-rem: #a7ceff; --stage-core: #5294e6; --stage-deep: #195daa; --stage-awake: #f05940;
+  --zone-1: #0051a0; --zone-2: #266ec3; --zone-3: #468de5; --zone-4: #6dadff; --zone-5: #a7ceff;
+  --seq-lo: #002d5e; --seq-mid: #4682cc; --seq-hi: #c9e0ff;
+  --good: #5bc663; --bad: #f47b74;
+}
+
+/* ================================================================== the shared film shell */
+body[data-film] {
+  --f-serif: "Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", "SimSun", serif;
+  --f-kai: "Kaiti SC", "STKaiti", "KaiTi", "BiauKai", serif;
+  --f-fang: "STFangsong", "FangSong", "Fangsong SC", serif;
+  --f-hei: "PingFang SC", "Heiti SC", "Microsoft YaHei UI", "Microsoft YaHei", "SimHei", sans-serif;
+  --f-round: "Yuanti SC", "YouYuan", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+  --f-cond: "Bahnschrift", "DIN Condensed", "Oswald", "Arial Narrow", sans-serif;
+  --f-mono: Consolas, "SF Mono", Menlo, "Courier New", monospace;
+  --f-en: Georgia, "Times New Roman", serif;
+  --f-head: var(--f-serif);         /* headings and the page title */
+  --f-head-weight: 700;
+  --f-num: var(--f-cond);           /* big numbers */
+  --f-num-stretch: 75%;
+  --f-label: var(--f-mono);         /* small labels and English lines */
+  --f-accent: var(--series-1);      /* the film's own colour: tabs, scene numbers, rules */
+  --f-accent-ink: var(--series-1);  /* the same, where it is text on the page */
+  --f-on-accent: #ffffff;
+  --f-link: var(--series-1);
+  --f-line: var(--border);
+  --f-corner: transparent;          /* viewfinder corners on panels; a film may turn them on */
+  --f-radius: 2px;
+  /* the title card */
+  --f-hero-bg: var(--surface);
+  --f-hero-ink: var(--ink);
+  --f-hero-muted: var(--muted);
+  --f-hero-line: var(--border);
+  --f-hero-num: var(--ink);
+  --f-bar: #121212;
+  --f-bar-ink: rgba(255, 255, 255, 0.72);
+  --f-rec: #ff4141;
+  --f-subs-bg: #121212;
+  --f-subs-zh: #f2cf5b;
+  --f-subs-en: rgba(239, 230, 210, 0.78);
+  --f-subs-font: var(--f-serif);
+  --f-art-1: var(--ink);
+  --f-art-2: var(--series-1);
+  --f-art-3: var(--series-2);
+  --f-glow: none;                   /* neon glow on text, for the films that have neon */
+  --f-art-glow: none;
+}
+
+/* header, tabs and filters wear the film's type and colour */
+body[data-film] .top h1 { font-family: var(--f-head); font-weight: var(--f-head-weight); letter-spacing: 0.12em; }
+body[data-film] .top .sub { font-family: var(--f-label); font-size: 12px; letter-spacing: 0.04em; color: var(--muted); }
+body[data-film] .ghost { border-radius: var(--f-radius); border-color: var(--f-line); }
+body[data-film] .tab { color: var(--muted); }
+body[data-film] .tab:hover { color: var(--ink); }
+body[data-film] .tab[aria-selected="true"] { color: var(--f-accent-ink); font-weight: 650; border-bottom-color: var(--f-accent); text-shadow: var(--f-glow); }
+body[data-film] .filters .lbl, body[data-film] .filters .span, body[data-film] .daybar .span { font-family: var(--f-label); letter-spacing: 0.03em; }
+body[data-film] .seg { border-radius: var(--f-radius); border-color: var(--f-line); }
+body[data-film] .seg button { border-right-color: var(--f-line); }
+body[data-film] .seg button[aria-pressed="true"] { background: var(--f-accent); color: var(--f-on-accent); }
+body[data-film] .filters input[type="date"], body[data-film] .daybar input[type="date"] { border-radius: var(--f-radius); border-color: var(--f-line); font-family: var(--f-label); }
+body[data-film] .daybar .when { font-family: var(--f-head); font-weight: var(--f-head-weight); letter-spacing: 0.06em; }
+body[data-film] button.link, body[data-film] .srcs a { color: var(--f-link); }
+
+/* panels and tiles */
+body[data-film] .card, body[data-film] .tile { border-radius: var(--f-radius); border-color: var(--f-line); position: relative; }
+body[data-film] .card::before, body[data-film] .card::after { content: ""; position: absolute; width: 12px; height: 12px; pointer-events: none; transition: border-color 0.3s; }
+body[data-film] .card::before { top: -1px; left: -1px; border-top: 2px solid var(--f-corner); border-left: 2px solid var(--f-corner); }
+body[data-film] .card::after { right: -1px; bottom: -1px; border-right: 2px solid var(--f-corner); border-bottom: 2px solid var(--f-corner); }
+body[data-film] .card h3 { font-family: var(--f-head); font-weight: var(--f-head-weight); font-size: 15px; letter-spacing: 0.06em; }
+body[data-film] .tile .k { font-family: var(--f-head); letter-spacing: 0.04em; }
+body[data-film] .tile .v, body[data-film] .card .figure b { font-family: var(--f-num); font-stretch: var(--f-num-stretch); font-weight: 600; font-size: 30px; letter-spacing: 0; }
+body[data-film] .card .figure b { font-size: 34px; }
+body[data-film] .tile .v small, body[data-film] .card .figure small { font-family: var(--f-head); }
+body[data-film] .tablewrap th { font-family: var(--f-head); letter-spacing: 0.04em; }
+
+/* scene headings (films.js) */
+.fm-scene { display: grid; grid-template-columns: auto auto auto minmax(40px, 1fr); align-items: baseline; gap: 6px 16px; margin: 46px 0 14px; }
+.fm-scene:first-child { margin-top: 6px; }
+.fm-scene .no { font-family: var(--f-label); font-size: 13px; letter-spacing: 0.16em; color: var(--f-accent-ink); text-shadow: var(--f-glow); white-space: nowrap; }
+.fm-scene .t { font-family: var(--f-head); font-size: 28px; font-weight: var(--f-head-weight); letter-spacing: 0.12em; line-height: 1.15; color: var(--ink); }
+.fm-scene .en { font-family: var(--f-label); font-size: 11.5px; letter-spacing: 0.2em; color: var(--muted); white-space: nowrap; }
+.fm-scene .rule { height: 1px; align-self: center; background: var(--f-line); }
+
+/* the title card (films.js) */
+.fm-hero { position: relative; margin: 2px 0 30px; background: var(--f-hero-bg); color: var(--f-hero-ink); border: 1px solid var(--f-hero-line); overflow: hidden; }
+.fm-bar {
+  position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 36px; padding: 6px 20px;
+  background: var(--f-bar); color: var(--f-bar-ink); font-family: var(--f-mono); font-size: 11.5px; letter-spacing: 0.16em;
+}
+.fm-credit i { display: inline-block; width: 8px; height: 8px; margin-right: 10px; border-radius: 50%; background: var(--f-rec); vertical-align: 1px; }
+.fm-frame { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 0.46fr); align-items: center; gap: 24px 48px; padding: 36px 48px 30px; }
+.fm-kicker { font-family: var(--f-label); font-size: 12px; letter-spacing: 0.22em; color: var(--f-hero-muted); }
+.fm-name { margin: 12px 0 0; font-family: var(--f-head); font-size: clamp(32px, 3.3vw, 50px); font-weight: var(--f-head-weight); letter-spacing: 0.08em; line-height: 1.15; color: var(--f-hero-ink); text-shadow: var(--f-glow); }
+.fm-figs { display: flex; flex-wrap: wrap; gap: 16px 0; margin-top: 24px; }
+.fm-fig { min-width: 0; padding: 0 26px; border-left: 1px solid var(--f-hero-line); }
+.fm-fig:first-child { padding-left: 0; border-left: 0; }
+.fm-fig .v { white-space: nowrap; line-height: 1; }
+.fm-fig .v b { font-family: var(--f-num); font-stretch: var(--f-num-stretch); font-size: 54px; font-weight: 600; color: var(--f-hero-num); }
+.fm-fig .v small { margin: 0 6px 0 4px; font-family: var(--f-head); font-size: 15px; color: var(--f-hero-muted); }
+.fm-fig.word .v b { font-family: var(--f-head); font-stretch: normal; font-size: 28px; font-weight: var(--f-head-weight); letter-spacing: 0.06em; }
+.fm-fig .k { margin-top: 9px; font-family: var(--f-label); font-size: 11.5px; letter-spacing: 0.08em; color: var(--f-hero-muted); }
+.fm-art svg { display: block; width: 100%; max-width: 320px; height: auto; margin: 0 auto; overflow: visible; filter: var(--f-art-glow); }
+.fm-art .a1 { color: var(--f-art-1); stroke: var(--f-art-1); }
+.fm-art .a2 { color: var(--f-art-2); stroke: var(--f-art-2); }
+.fm-art .a3 { color: var(--f-art-3); stroke: var(--f-art-3); }
+.fm-art text { fill: currentColor; stroke: none; font-family: var(--f-head); font-weight: 700; }
+.fm-art .fill { fill: currentColor; stroke: none; }
+.fm-subs { position: relative; z-index: 1; padding: 16px 28px 20px; background: var(--f-subs-bg); text-align: center; text-wrap: balance; }
+.fm-subs .zh { margin: 0; font-family: var(--f-subs-font); font-size: 21px; line-height: 1.6; letter-spacing: 0.04em; color: var(--f-subs-zh); }
+.fm-subs .en { margin: 6px 0 0; font-family: var(--f-en); font-style: italic; font-size: 14.5px; letter-spacing: 0.01em; color: var(--f-subs-en); }
+
+/* the report's suggestions sit under a title card that already carries the headline */
+.report-head.filmed { padding-top: 14px; }
+.report-head.filmed .tips { margin-top: 6px; }
+.tips-head { font-family: var(--f-label); font-size: 12px; letter-spacing: 0.16em; color: var(--muted); }
+body[data-film] .tip summary b { font-family: var(--f-head); letter-spacing: 0.04em; font-size: 15.5px; }
+
+@media (max-width: 980px) {
+  .fm-frame { grid-template-columns: minmax(0, 1fr); padding: 28px 24px 22px; }
+  .fm-art { display: none; }
+  .fm-fig .v b { font-size: 42px; }
+}
+@media (max-width: 640px) {
+  .fm-scene { grid-template-columns: auto auto minmax(20px, 1fr); }
+  .fm-scene .en { display: none; }
+  .fm-scene .t { font-size: 22px; }
+  .fm-fig, .fm-fig:first-child { padding: 0 22px 0 0; border-left: 0; }
+  .fm-bar .fm-tc { display: none; }
+  .fm-subs .zh { font-size: 18px; }
+}
+
+/* ================================================================== 甜蜜蜜 · the weekly report
+   A warm everyday letter on a navy night: rose neon, cream type, a bicycle. */
+body[data-tab="report"] {
+  --f-corner: #ff8aa8;
+  --f-accent: #da386e;
+  --f-accent-ink: #ff8aa8;
+  --f-link: #7fb0ff;
+  --f-radius: 3px;
+  --f-hero-bg: radial-gradient(640px 300px at 78% 36%, rgba(255, 120, 160, 0.16), transparent 70%), #151a33;
+  --f-hero-ink: #fbeee8;
+  --f-hero-muted: rgba(251, 238, 232, 0.66);
+  --f-hero-line: rgba(251, 238, 232, 0.14);
+  --f-hero-num: #fff3ee;
+  --f-bar: #0b0d17;
+  --f-bar-ink: rgba(255, 238, 242, 0.78);
+  --f-rec: #ff7ba0;
+  --f-subs-bg: #0b0d17;
+  --f-subs-zh: #ffd6e0;
+  --f-subs-en: rgba(255, 236, 241, 0.75);
+  --f-art-1: #fbeee8;
+  --f-art-2: #ff7ba0;
+  --f-on-accent: #ffffff;
+  --f-glow: 0 0 14px rgba(255, 123, 160, 0.45);
+  --f-art-glow: drop-shadow(0 0 6px rgba(255, 123, 160, 0.55));
+}
+body[data-tab="report"] .fm-scene .en { font-family: var(--f-en); font-style: italic; font-size: 13px; letter-spacing: 0.06em; }
+
+/* ================================================================== 无间道 · overview
+   The city from a rooftop: steel, glass and cold light; floor numbers instead of scene numbers. */
+body[data-tab="overview"] {
+  --f-head: var(--f-hei);
+  --f-head-weight: 600;
+  --f-corner: #5ec8ee;
+  --f-accent: #2a9fd6;
+  --f-accent-ink: #7fd3f5;
+  --f-radius: 0;
+  --f-hero-bg: linear-gradient(180deg, #070c10 0%, #0b151c 100%);
+  --f-hero-ink: #e3ecf1;
+  --f-hero-muted: rgba(227, 236, 241, 0.62);
+  --f-hero-line: rgba(227, 236, 241, 0.12);
+  --f-bar: #04080a;
+  --f-bar-ink: rgba(228, 240, 246, 0.74);
+  --f-rec: #cf8100;
+  --f-subs-bg: #04080a;
+  --f-subs-zh: #eef6fb;
+  --f-subs-en: rgba(228, 240, 246, 0.72);
+  --f-subs-font: var(--f-hei);
+  --f-art-1: #5ec8ee;
+  --f-art-2: rgba(227, 236, 241, 0.7);
+  --f-art-3: #f0a34a;
+  --f-on-accent: #0b1115;
+  --f-hero-num: #f2f8fb;
+  --f-art-glow: drop-shadow(0 0 5px rgba(94, 200, 238, 0.45));
+}
+body[data-tab="overview"] .fm-scene .no { padding: 1px 8px; border: 1px solid var(--f-accent); letter-spacing: 0.08em; }
+body[data-tab="overview"] .fm-scene .t, body[data-tab="overview"] .fm-name { letter-spacing: 0.18em; }
+body[data-tab="overview"] .fm-kicker, body[data-tab="overview"] .fm-scene .en { text-transform: uppercase; letter-spacing: 0.3em; }
+
+/* ================================================================== 旺角卡门 · activity
+   Mong Kok at night: electric blue and magenta neon; the scenes are streets. */
+body[data-tab="activity"] {
+  --f-head: var(--f-hei);
+  --f-head-weight: 800;
+  --f-label: var(--f-cond);
+  --f-corner: #ff5ca4;
+  --f-accent: #325bda;
+  --f-accent-ink: #ff7ab6;
+  --f-hero-bg: radial-gradient(720px 340px at 82% 30%, rgba(255, 70, 160, 0.2), transparent 70%), #0c0f3d;
+  --f-hero-ink: #eaecff;
+  --f-hero-muted: rgba(234, 236, 255, 0.68);
+  --f-hero-line: rgba(234, 236, 255, 0.16);
+  --f-hero-num: #ffffff;
+  --f-bar: #05061a;
+  --f-bar-ink: rgba(234, 236, 255, 0.78);
+  --f-rec: #ff6fa5;
+  --f-subs-bg: #05061a;
+  --f-subs-zh: #ff9cc8;
+  --f-subs-en: rgba(234, 236, 255, 0.74);
+  --f-subs-font: var(--f-hei);
+  --f-art-1: #6f95ff;
+  --f-art-2: #ff5ca4;
+  --f-art-3: rgba(234, 236, 255, 0.55);
+  --f-glow: 0 0 4px rgba(255, 92, 164, 0.9), 0 0 16px rgba(255, 92, 164, 0.55);
+  --f-art-glow: drop-shadow(0 0 4px rgba(255, 92, 164, 0.8)) drop-shadow(0 0 12px rgba(111, 149, 255, 0.5));
+}
+body[data-tab="activity"] .fm-scene .no { padding: 3px 10px 2px; background: transparent; color: #ffd7ea; font-family: var(--f-hei); font-weight: 700; letter-spacing: 0.12em; border-radius: 2px; border: 1.5px solid #ff5ca4; box-shadow: 0 0 10px rgba(255, 92, 164, 0.6), inset 0 0 8px rgba(255, 92, 164, 0.35); }
+body[data-tab="activity"] .fm-scene .en, body[data-tab="activity"] .fm-kicker { text-transform: uppercase; letter-spacing: 0.24em; }
+
+/* ================================================================== 2046 · sleep
+   A night train to 2046: a neon room number (your usual bedtime), station stops, teal and signal orange. */
+body[data-tab="sleep"] {
+  --f-head: var(--f-hei);
+  --f-head-weight: 600;
+  --f-corner: #ff6a3d;
+  --f-accent: #f3572a;
+  --f-accent-ink: #ff8a5c;
+  --f-on-accent: #0e0f12;
+  --f-radius: 6px;
+  --f-hero-bg: radial-gradient(600px 280px at 80% 40%, rgba(255, 90, 50, 0.16), transparent 70%), #08090b;
+  --f-hero-ink: #eceef1;
+  --f-hero-muted: rgba(236, 238, 241, 0.62);
+  --f-hero-line: rgba(236, 238, 241, 0.13);
+  --f-bar: #000000;
+  --f-bar-ink: rgba(236, 238, 241, 0.74);
+  --f-rec: #f75a2e;
+  --f-subs-bg: #000000;
+  --f-subs-zh: #fff1e6;
+  --f-subs-en: rgba(236, 238, 241, 0.72);
+  --f-art-1: rgba(236, 238, 241, 0.75);
+  --f-art-2: #ff6a3d;
+  --f-art-3: #3fd4dc;
+  --f-hero-num: #ffffff;
+  --f-glow: 0 0 4px rgba(255, 106, 61, 0.85), 0 0 18px rgba(255, 106, 61, 0.5);
+  --f-art-glow: drop-shadow(0 0 5px rgba(255, 106, 61, 0.75));
+}
+body[data-tab="sleep"] .fm-art text.neon { font-family: var(--f-cond); font-stretch: 75%; font-weight: 600; letter-spacing: 4px; }
+body[data-tab="sleep"] .fm-scene .no { padding: 2px 10px; border-radius: 999px; background: var(--f-accent); color: var(--f-on-accent); font-weight: 700; letter-spacing: 0.1em; text-shadow: none; }
+body[data-tab="sleep"] .card { border-top: 2px solid var(--f-accent); }
+
+/* ================================================================== 春光乍泄 · heart
+   Tango time: black-and-white film lit by a turquoise waterfall lamp, a red ECG trace. Scenes are beats. */
+body[data-tab="heart"] {
+  --grid: #262626;
+  --axis: #3a3a3a;
+  --f-label: var(--f-mono);
+  --f-corner: #ededed;
+  --f-accent: #d02b34;
+  --f-accent-ink: #ff6a72;
+  --f-link: #5fd0d6;
+  --f-hero-bg: radial-gradient(520px 300px at 80% 38%, rgba(64, 214, 214, 0.18), transparent 70%), #0a0a0a;
+  --f-hero-ink: #ededed;
+  --f-hero-muted: rgba(237, 237, 237, 0.6);
+  --f-hero-line: rgba(237, 237, 237, 0.12);
+  --f-bar: #000000;
+  --f-bar-ink: rgba(255, 245, 245, 0.74);
+  --f-rec: #ff4d5a;
+  --f-subs-bg: #000000;
+  --f-subs-zh: #ffffff;
+  --f-subs-en: rgba(255, 255, 255, 0.7);
+  --f-art-1: #e6e6e6;
+  --f-art-2: #4fd6d6;
+  --f-art-3: #ff5560;
+  --f-hero-num: #ffffff;
+  --f-art-glow: drop-shadow(0 0 6px rgba(79, 214, 214, 0.5));
+}
+body[data-tab="heart"] .fm-scene .rule {
+  height: 22px;
+  background: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='22'><path d='M0 14h46l6-8 6 14 7-18 7 16 5-4h83' fill='none' stroke='%23ff5560' stroke-width='1.6' stroke-linejoin='round'/></svg>");
+  background-repeat: repeat-x;
+  background-position: left center;
+}
+
+/* ================================================================== 一代宗师 · workouts
+   Kung fu practice in the rain: slate, a warm lamp, a vermilion seal. Brush-hand headings;
+   scenes are forms, numbered in seals. */
+body[data-tab="workouts"] {
+  --f-head: var(--f-kai);
+  --f-head-weight: 700;
+  --f-corner: transparent;
+  --f-accent: #e3b45a;
+  --f-accent-ink: #e8be6c;
+  --f-link: #8aa0ff;
+  --f-radius: 0;
+  --f-hero-bg: repeating-linear-gradient(104deg, transparent 0 22px, rgba(220, 230, 240, 0.07) 22px 23px, transparent 23px 47px),
+    radial-gradient(520px 320px at 82% 30%, rgba(227, 180, 90, 0.18), transparent 70%),
+    #0a0c0f;
+  --f-hero-ink: #ece9e2;
+  --f-hero-muted: rgba(236, 233, 226, 0.6);
+  --f-hero-line: rgba(236, 233, 226, 0.12);
+  --f-bar: #000000;
+  --f-bar-ink: rgba(255, 255, 255, 0.7);
+  --f-rec: #c8282e;
+  --f-subs-bg: #000000;
+  --f-subs-zh: #efdcae;
+  --f-subs-en: rgba(255, 255, 255, 0.68);
+  --f-subs-font: var(--f-kai);
+  --f-art-1: #ece9e2;
+  --f-art-2: #c8282e;
+  --f-art-3: #f6efe0;
+  --f-on-accent: #0d0f12;
+  --f-hero-num: #f6f2e8;
+}
+body[data-tab="workouts"] .fm-scene .no {
+  display: inline-grid; place-items: center; width: 34px; height: 34px; padding: 0; align-self: center;
+  background: #c8282e; color: #ffffff; font-family: var(--f-kai); font-size: 20px; letter-spacing: 0; border-radius: 3px; text-shadow: none;
+}
+body[data-tab="workouts"] .fm-scene .t { font-size: 32px; letter-spacing: 0.2em; }
+body[data-tab="workouts"] .fm-name { font-size: clamp(40px, 4.2vw, 64px); letter-spacing: 0.3em; }
+body[data-tab="workouts"] .card { border-width: 0 0 0 0; border-top: 2px solid var(--ink); }
+
+/* ================================================================== 花样年华 · body
+   A tailor takes measurements and does not judge: a crimson silk ground, an ivory qipao, a tape
+   measure; serif numerals and double rules; lamplight in a crimson room. */
+body[data-tab="body"] {
+  --f-num: var(--f-en);
+  --f-num-stretch: normal;
+  --f-label: var(--f-en);
+  --f-corner: #e8a33d;
+  --f-accent: #cf3a55;
+  --f-accent-ink: #ff8ba0;
+  --f-link: #4fd1a5;
+  --f-radius: 0;
+  --f-hero-bg: radial-gradient(560px 320px at 80% 34%, rgba(240, 178, 74, 0.2), transparent 70%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'><g fill='none' stroke='%23f5e7dc' stroke-opacity='.07' stroke-width='1.2'><circle cx='22' cy='22' r='9'/><path d='M22 6v8M22 30v8M6 22h8M30 22h8'/></g></svg>"),
+    #2a0c14;
+  --f-hero-ink: #f5e7dc;
+  --f-hero-muted: rgba(251, 239, 228, 0.74);
+  --f-hero-line: rgba(251, 239, 228, 0.24);
+  --f-hero-num: #fff6ec;
+  --f-bar: #120507;
+  --f-bar-ink: rgba(251, 239, 228, 0.74);
+  --f-rec: #f0b24a;
+  --f-subs-bg: #120507;
+  --f-subs-zh: #f3d9a4;
+  --f-subs-en: rgba(251, 239, 228, 0.72);
+  --f-art-1: #f5e7dc;
+  --f-art-2: #f0b24a;
+  --f-art-3: #f5e7dc;
+  --f-art-glow: drop-shadow(0 0 6px rgba(240, 178, 74, 0.35));
+}
+body[data-tab="body"] .fm-scene .rule { height: 4px; background: none; border-top: 1px solid var(--f-accent); border-bottom: 1px solid var(--f-accent); opacity: 0.6; }
+body[data-tab="body"] .tile { outline: 1px solid var(--f-line); outline-offset: -6px; }
+body[data-tab="body"] .fm-kicker .en, body[data-tab="body"] .fm-scene .en { font-style: italic; letter-spacing: 0.08em; }
+body[data-tab="body"] .fm-kicker .zh, body[data-tab="body"] .fm-fig .k { font-family: var(--f-serif); }
+body[data-tab="body"] .fm-fig .v b { font-weight: 400; }
+
+/* ================================================================== 东邪西毒 · insights
+   The desert at night: a moon over dark sand, dunes; brush-script headings and solar terms for scenes. */
+body[data-tab="insights"] {
+  --f-head: var(--f-kai);
+  --f-head-weight: 700;
+  --f-corner: #f2c35a;
+  --f-accent: #e36a00;
+  --f-accent-ink: #ffa25a;
+  --f-link: #6fb0ff;
+  --f-on-accent: #0f0d14;
+  --f-radius: 0;
+  --f-hero-bg: linear-gradient(180deg, #121a3a 0, #121a3a 80%, #0c0a10 80%, #0c0a10 100%);
+  --f-hero-ink: #f2e8d8;
+  --f-hero-muted: rgba(242, 232, 216, 0.62);
+  --f-hero-line: rgba(242, 232, 216, 0.12);
+  --f-bar: #000000;
+  --f-bar-ink: rgba(247, 226, 166, 0.82);
+  --f-rec: #e76d00;
+  --f-subs-bg: #000000;
+  --f-subs-zh: #f7e2a6;
+  --f-subs-en: rgba(253, 246, 228, 0.72);
+  --f-subs-font: var(--f-kai);
+  --f-art-1: #f2e8d8;
+  --f-art-2: #e9b45a;
+  --f-art-3: rgba(242, 232, 216, 0.5);
+  --f-hero-num: #fbf3e6;
+  --f-art-glow: drop-shadow(0 0 10px rgba(242, 232, 216, 0.35));
+}
+body[data-tab="insights"] .fm-scene .no { font-family: var(--f-kai); font-size: 18px; letter-spacing: 0.2em; }
+body[data-tab="insights"] .fm-name { letter-spacing: 0.4em; }
+
+/* ================================================================== 阿飞正传 · single day
+   That one minute: a green room, a wall clock stopped just before three, a red second hand. */
+body[data-tab="day"] {
+  --f-corner: #f2d27a;
+  --f-accent: #2fa56f;
+  --f-accent-ink: #6fd8a4;
+  --f-hero-bg: radial-gradient(520px 300px at 80% 40%, rgba(242, 210, 122, 0.16), transparent 70%), #0c1f17;
+  --f-hero-ink: #eaf2ec;
+  --f-hero-muted: rgba(234, 242, 236, 0.62);
+  --f-hero-line: rgba(234, 242, 236, 0.12);
+  --f-hero-num: #fffaf0;
+  --f-bar: #000000;
+  --f-bar-ink: rgba(234, 242, 236, 0.74);
+  --f-rec: #ff5a5a;
+  --f-subs-bg: #000000;
+  --f-subs-zh: #f3e3a6;
+  --f-subs-en: rgba(234, 242, 236, 0.72);
+  --f-art-1: #eaf2ec;
+  --f-art-2: #f2d27a;
+  --f-art-3: #ff6b5e;
+  --f-on-accent: #0b1712;
+  --f-art-glow: drop-shadow(0 0 6px rgba(242, 210, 122, 0.4));
+}
+
+/* ================================================================== 麦兜故事 · more
+   A postcard from a starry seaside (sun, air and water): airmail stripes, a stamp, rounded friendly type. */
+body[data-tab="more"] {
+  --f-head: var(--f-round);
+  --f-head-weight: 400;
+  --f-label: var(--f-round);
+  --f-corner: transparent;
+  --f-accent: #008cbc;
+  --f-accent-ink: #6cc8f0;
+  --f-radius: 6px;
+  --f-hero-bg: radial-gradient(1.5px 1.5px at 12% 22%, #ffffff, transparent 60%), radial-gradient(1.5px 1.5px at 34% 12%, #ffffff, transparent 60%),
+    radial-gradient(1px 1px at 52% 30%, #ffffff, transparent 60%), radial-gradient(1.5px 1.5px at 64% 14%, #ffffff, transparent 60%),
+    radial-gradient(1px 1px at 22% 44%, #ffffff, transparent 60%), radial-gradient(1.5px 1.5px at 44% 52%, #ffffff, transparent 60%),
+    #0f2240;
+  --f-hero-ink: #eaf3ff;
+  --f-hero-muted: rgba(234, 243, 255, 0.66);
+  --f-hero-line: rgba(234, 243, 255, 0.14);
+  --f-bar: repeating-linear-gradient(135deg, #a8323a 0 14px, #1b2b44 14px 22px, #2a4f96 22px 36px, #1b2b44 36px 44px);
+  --f-bar-ink: #eaf3ff;
+  --f-rec: #e5484d;
+  --f-subs-bg: #111d33;
+  --f-subs-zh: #eaf3ff;
+  --f-subs-en: rgba(234, 243, 255, 0.66);
+  --f-subs-font: var(--f-round);
+  --f-art-1: #cfe6ff;
+  --f-art-2: #ffd27a;
+  --f-art-3: #6cc8f0;
+  --f-on-accent: #0b1424;
+  --f-hero-num: #ffffff;
+}
+body[data-tab="more"] .fm-hero { border: 0; box-shadow: 0 0 0 1px var(--f-hero-line); }
+body[data-tab="more"] .fm-bar span { padding: 2px 10px; background: #0b1424; border-radius: 3px; }
+body[data-tab="more"] .fm-subs { border-top: 1px dashed var(--f-hero-line); }
+body[data-tab="more"] .fm-scene .no { padding: 2px 10px; border: 1.5px dashed var(--f-accent); border-radius: 3px; letter-spacing: 0.08em; }
+
+/* ================================================================== 天水围的日与夜 · summary for the doctor
+   An estate at night: calm and plain, a row of lit windows. */
+body[data-tab="summary"] {
+  --f-head: var(--f-hei);
+  --f-head-weight: 600;
+  --f-label: var(--f-hei);
+  --f-accent: #00999f;
+  --f-accent-ink: #5fd0d4;
+  --f-on-accent: #121517;
+  --f-radius: 4px;
+  --f-hero-bg: #0f181b;
+  --f-hero-ink: #e8ecee;
+  --f-hero-muted: rgba(232, 236, 238, 0.62);
+  --f-hero-line: rgba(232, 236, 238, 0.12);
+  --f-bar: #000000;
+  --f-bar-ink: rgba(232, 236, 238, 0.74);
+  --f-rec: #ca8400;
+  --f-subs-bg: #000000;
+  --f-subs-zh: #f3f6f6;
+  --f-subs-en: rgba(232, 236, 238, 0.7);
+  --f-subs-font: var(--f-hei);
+  --f-art-1: #5f9aa0;
+  --f-art-2: #3c6166;
+  --f-art-3: #ffc95e;
+  --f-hero-num: #f4f7f8;
+  --f-art-glow: drop-shadow(0 0 4px rgba(255, 201, 94, 0.45));
+}
+body[data-tab="summary"] .fm-kicker, body[data-tab="summary"] .fm-scene .en { letter-spacing: 0.12em; }
+
+/* ================================================================== 大话西游 · backtest
+   The moonlight box: a violet night sky, a moon, a little box that sends you back. */
+body[data-tab="backtest"] {
+  --f-head: var(--f-kai);
+  --f-head-weight: 700;
+  --f-corner: #e8e2ff;
+  --f-accent: #7d4ad3;
+  --f-accent-ink: #c4a8ff;
+  --f-hero-bg: radial-gradient(420px 280px at 70% 30%, rgba(232, 226, 255, 0.16), transparent 70%), #17123a;
+  --f-hero-ink: #efeaff;
+  --f-hero-muted: rgba(239, 234, 255, 0.62);
+  --f-hero-line: rgba(239, 234, 255, 0.13);
+  --f-bar: #07051a;
+  --f-bar-ink: rgba(239, 234, 255, 0.74);
+  --f-rec: #ca8400;
+  --f-subs-bg: #07051a;
+  --f-subs-zh: #f6dfa0;
+  --f-subs-en: rgba(239, 234, 255, 0.72);
+  --f-subs-font: var(--f-kai);
+  --f-art-1: #e8e2ff;
+  --f-art-2: #f0c060;
+  --f-art-3: #c4a8ff;
+  --f-hero-num: #ffffff;
+  --f-art-glow: drop-shadow(0 0 8px rgba(232, 226, 255, 0.45));
+}
+
+/* ================================================================== 阮玲玉 · notes
+   Behind the scenes, as a silent film: a black intertitle card with an Art Deco frame, reels for scenes. */
+body[data-tab="notes"] {
+  --f-num: var(--f-en);
+  --f-num-stretch: normal;
+  --f-label: var(--f-en);
+  --f-accent: #c9a24a;
+  --f-accent-ink: #d9b562;
+  --f-link: #7fb2ff;
+  --f-radius: 0;
+  --f-hero-bg: #050505;
+  --f-hero-ink: #f5f1e6;
+  --f-hero-muted: rgba(245, 241, 230, 0.62);
+  --f-hero-line: rgba(201, 162, 74, 0.35);
+  --f-hero-num: #f5f1e6;
+  --f-bar: #050505;
+  --f-bar-ink: rgba(201, 162, 74, 0.9);
+  --f-rec: #c9a24a;
+  --f-subs-bg: #050505;
+  --f-subs-zh: #f5f1e6;
+  --f-subs-en: rgba(245, 241, 230, 0.66);
+  --f-art-1: #c9a24a;
+  --f-art-2: #f5f1e6;
+  --f-art-3: #c9a24a;
+  --f-on-accent: #0d0d0d;
+}
+body[data-tab="notes"] .fm-hero { border: 1px solid #c9a24a; outline: 1px solid #c9a24a; outline-offset: -8px; }
+body[data-tab="notes"] .fm-bar { border-bottom: 1px solid rgba(201, 162, 74, 0.35); }
+body[data-tab="notes"] .fm-subs { border-top: 1px solid rgba(201, 162, 74, 0.35); }
+body[data-tab="notes"] .fm-name, body[data-tab="notes"] .fm-subs .zh { letter-spacing: 0.16em; }
+body[data-tab="notes"] .fm-kicker, body[data-tab="notes"] .fm-fig .k { font-variant: small-caps; letter-spacing: 0.14em; }
+
+}

@@ -83,9 +83,9 @@
     const mean = s / n;
     return { n, mean, sd: Math.sqrt(Math.max(0, ss / n - mean * mean)) };
   }
-  /** last 7 days of the range vs the 28 days before them */
-  HD.baselineStatus = (ctx) => {
-    const end = ctx.b, rows = [];
+  /** last 7 days up to `end` vs the 28 days before them, one row per measure with enough data */
+  HD.baselineRows = (end) => {
+    const rows = [];
     for (const m of VITALS) {
       const arr = D[m.key];
       const recent = stats(arr, end - 6, end), base = stats(arr, end - 34, end - 7);
@@ -101,6 +101,10 @@
       }
       rows.push({ m, recent, base, z, state, label });
     }
+    return rows;
+  };
+  HD.baselineStatus = (ctx) => {
+    const end = ctx.b, rows = HD.baselineRows(end);
     if (!rows.length) return { empty: true };
     const fmt = (m, v) => (m.fmt ? m.fmt(v) : num(v, m.dec) + ' ' + m.unit);
     const icon = { in: '●', good: '✓', warn: '▲', serious: '▲', note: '◆' };
